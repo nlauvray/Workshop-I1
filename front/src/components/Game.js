@@ -7,12 +7,17 @@ const Game = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const wsRef = useRef(null);
+  const playerName = typeof window !== 'undefined'
+    ? (localStorage.getItem('playerName') || 'Joueur')
+    : 'Joueur';
   const [gameState, setGameState] = useState(null);
   const [playerId, setPlayerId] = useState(null);
   const [imageData, setImageData] = useState('');
   const [mousePosition, setMousePosition] = useState({ x: 400, y: 300 });
   const [isConnected, setIsConnected] = useState(false);
   const [showDronePhoto, setShowDronePhoto] = useState(false);
+  const [flash, setFlash] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
 
   useEffect(() => {
     console.log('Connexion WebSocket à la salle:', roomId);
@@ -22,6 +27,10 @@ const Game = () => {
     ws.onopen = () => {
       console.log('✅ Connexion WebSocket établie');
       setIsConnected(true);
+      // Envoyer le nom au serveur pour validation et enregistrement
+      try {
+        ws.send(JSON.stringify({ type: 'set_name', name: playerName }));
+      } catch {}
     };
 
     ws.onmessage = (event) => {
@@ -47,10 +56,16 @@ const Game = () => {
           setMousePosition({ x: data.position.x, y: data.position.y });
           
         } else if (data.type === 'drone_detected') {
-          setShowDronePhoto(true);
-          setTimeout(() => setShowDronePhoto(false), 2000);
+          setShowDronePhoto(true); // afficher le visuel du drone
+          setGameOver(true); // partie terminée
+          setFlash(true);
+          setTimeout(() => setFlash(false), 250);
         } else if (data.type === 'player_switched') {
           console.log(`🔄 Joueur actuel: ${data.current_player}`);
+        } else if (data.type === 'name_status') {
+          if (!data.ok) {
+            alert(data.reason === 'duplicate' ? 'Ce pseudonyme est déjà pris dans cette salle.' : 'Nom invalide');
+          }
         }
       } catch (error) {
         console.error('❌ Erreur parsing message:', error);
@@ -73,7 +88,7 @@ const Game = () => {
         wsRef.current.close();
       }
     };
-  }, [roomId]);
+  }, [roomId, playerName]);
 
   const sendCommand = (command) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -89,6 +104,7 @@ const Game = () => {
   const MOVE_THROTTLE = 50; // 50ms entre les messages de mouvement
 
   const handleMouseMove = (e) => {
+    if (gameOver) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -110,6 +126,7 @@ const Game = () => {
   };
 
   const handleClick = (e) => {
+    if (gameOver) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -123,6 +140,7 @@ const Game = () => {
   };
 
   const changeMode = (mode) => {
+    if (gameOver) return;
     console.log('🔄 Changement de mode:', mode);
     sendCommand({
       type: 'mode_change',
@@ -134,11 +152,11 @@ const Game = () => {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-xl">Connexion à la salle {roomId}...</p>
-          <p className="text-gray-400 text-sm mt-2">Vérifiez que le backend est démarré</p>
+      <div className="join-page">
+        <div className="panel fade-in" style={{maxWidth: 520, textAlign: 'center'}}>
+          <h2 className="panel-title">Connexion au serveur...</h2>
+          <div className="animate-spin rounded-full" style={{width: 64, height: 64, border: '4px solid rgba(255,255,255,0.4)', borderTopColor: 'transparent', borderRadius: 9999, margin: '16px auto'}}></div>
+          <div className="hint-text">Salle {roomId}</div>
         </div>
       </div>
     );
@@ -146,11 +164,10 @@ const Game = () => {
 
   if (!gameState) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-xl">Chargement du jeu...</p>
-          <p className="text-gray-400 text-sm mt-2">Attente des données du serveur</p>
+      <div className="join-page">
+        <div className="panel fade-in" style={{maxWidth: 520, textAlign: 'center'}}>
+          <h2 className="panel-title">Chargement du jeu...</h2>
+          <div className="hint-text">Salle {roomId}</div>
         </div>
       </div>
     );
@@ -159,160 +176,76 @@ const Game = () => {
   // Le créateur est Joueur 1, le second Joueur 2
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="bg-gray-800 p-4 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold">🎮 Escape Game</h1>
-            <span className="bg-blue-600 px-3 py-1 rounded-full text-sm">
-              Salle: {roomId}
-            </span>
-            <span className="bg-green-600 px-3 py-1 rounded-full text-sm">
-              Joueur {playerId}
-            </span>
-            <span className={`px-3 py-1 rounded-full text-sm ${
-              isConnected ? 'bg-green-600' : 'bg-red-600'
-            }`}>
-              {isConnected ? 'Connecté' : 'Déconnecté'}
-            </span>
-          </div>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition duration-300"
-          >
-            Quitter
-          </button>
-        </div>
+    <div className="join-page">
+      <div className="hero fade-in" style={{marginBottom: 12}}>
+        <h1 className="hero-title">🎮 ESCAPE TECH</h1>
+        <p className="hero-subtitle">Salle {roomId} · {isConnected ? 'Connecté' : 'Déconnecté'}</p>
       </div>
 
-      {/* Game Area */}
-      <div className="max-w-3xl mx-auto p-4">
-        <div className="grid grid-cols-1 gap-8">
-          {/* Joueur 1 */}
-          <div className={`bg-gray-800 rounded-lg p-6 border-2 border-yellow-400`}>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Joueur 1</h2>
-              <div className="text-2xl font-bold text-yellow-400">
-                Score: {gameState.player1.score}
-              </div>
-              {showDronePhoto && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
-                  <img src={`http://localhost:8000/images/photo_dron.png`} alt="Drone" className="max-w-full max-h-full rounded shadow-lg" />
-                </div>
-              )}
+      <div className="panel fade-in" style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+        <div style={{display: 'flex', gap: 8, marginBottom: 12}}>
+          <div className="hint-text">{playerName} (Joueur {playerId})</div>
+          <button onClick={() => navigate('/')} className="btn btn-secondary">Quitter</button>
+        </div>
+
+        <div style={{display: 'flex', gap: 8, marginBottom: 16}}>
+          <button onClick={() => changeMode('BASE')} className="btn btn-secondary">Base</button>
+          <button onClick={() => changeMode('NVG')} className="btn btn-secondary">NVG</button>
+          <button onClick={() => changeMode('THERMAL')} className="btn btn-secondary">Thermal</button>
+        </div>
+
+        <div 
+          className="relative"
+          style={{ width: 512, height: 512, borderRadius: 12, overflow: 'hidden', background: '#000', cursor: 'crosshair' }}
+          onMouseMove={handleMouseMove}
+          onClick={handleClick}
+        >
+          {flash && (
+            <div className="absolute" style={{inset: 0, background: 'rgba(59,130,246,0.25)'}} />
+          )}
+          {showDronePhoto && (
+            <div
+              className="absolute"
+              style={{
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.7)',
+                zIndex: 60
+              }}
+            >
+              <img
+                src={`http://localhost:8000/images/photo_dron.png`}
+                alt="Drone"
+                style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8 }}
+              />
             </div>
-            
-            <div className="space-y-4">
-              {/* Contrôles */}
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => changeMode('BASE')}
-                  className={`px-4 py-2 rounded-lg transition duration-300 ${
-                    gameState.player1.mode === 'BASE' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                  }`}
-                >
-                  Base
-                </button>
-                <button
-                  onClick={() => changeMode('NVG')}
-                  className={`px-4 py-2 rounded-lg transition duration-300 ${
-                    gameState.player1.mode === 'NVG' 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                  }`}
-                >
-                  NVG
-                </button>
-                <button
-                  onClick={() => changeMode('THERMAL')}
-                  className={`px-4 py-2 rounded-lg transition duration-300 ${
-                    gameState.player1.mode === 'THERMAL' 
-                      ? 'bg-red-600 text-white' 
-                      : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                  }`}
-                >
-                  Thermal
-                </button>
-              </div>
+          )}
+          {imageData ? (
+            <img src={imageData} alt="Vue du joueur" width={512} height={512} style={{ width: 512, height: 512, objectFit: 'cover', display: 'block' }} />
+          ) : (
+            <div className="hint-text" style={{display:'flex', alignItems:'center', justifyContent:'center', width: '100%', height: '100%'}}>Chargement de l'image...</div>
+          )}
 
-              {/* Zone de jeu 512x512 pour correspondre aux coordonnées */}
-              <div 
-                className="relative bg-black rounded-lg overflow-hidden cursor-crosshair"
-                style={{ width: '512px', height: '512px' }}
-                onMouseMove={handleMouseMove}
-                onClick={handleClick}
-              >
-                {imageData ? (
-                  <img
-                    src={imageData}
-                    alt="Vue du joueur"
-                    width={512}
-                    height={512}
-                    style={{ width: '512px', height: '512px', objectFit: 'cover', display: 'block' }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    Chargement de l'image...
-                  </div>
-                )}
-                
-                {/* Foyer - exactement comme main.py */}
-                <div
-                  className="absolute border-4 border-yellow-400 pointer-events-none bg-yellow-400 bg-opacity-20"
-                  style={{
-                    left: mousePosition.x - 30,
-                    top: mousePosition.y - 30,
-                    width: '60px',
-                    height: '60px',
-                    zIndex: 10,
-                    position: 'absolute'
-                  }}
-                />
-                {/* DEBUG: Position du viseur */}
-                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs p-2 rounded z-50">
-                  Viseur: ({Math.round(mousePosition.x)}, {Math.round(mousePosition.y)})
-                </div>
-                {/* DEBUG: Viseur visible */}
-                <div className="absolute top-2 right-2 bg-green-500 text-white text-xs p-2 rounded z-50">
-                  Viseur visible: {mousePosition.x > 0 ? 'OUI' : 'NON'}
-                </div>
-                {/* DEBUG: Viseur position */}
-                <div className="absolute top-16 left-2 bg-blue-500 text-white text-xs p-2 rounded z-50">
-                  Position: left={mousePosition.x - 30}, top={mousePosition.y - 30}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          
+          <div
+            className="absolute"
+            style={{
+              left: mousePosition.x - 30,
+              top: mousePosition.y - 30,
+              width: 60,
+              height: 60,
+              border: '4px solid #facc15',
+              background: 'rgba(250, 204, 21, 0.2)',
+              pointerEvents: 'none'
+            }}
+          />
         </div>
 
-        {/* Contrôles du jeu - pas de changement de joueur */}
-
-        {/* Instructions */}
-        <div className="mt-6 bg-gray-800 rounded-lg p-4">
-          <h3 className="text-lg font-bold mb-2">Instructions :</h3>
-          <ul className="text-sm text-gray-300 space-y-1">
-            <li>• Déplacez la souris pour bouger le foyer de la caméra</li>
-            <li>• Changez de mode (Base, NVG, Thermal) avec les boutons</li>
-            <li>• En mode Thermal, cliquez sur le drone pour marquer des points</li>
-            
-          </ul>
-        </div>
-
-        {/* Debug Info */}
-        <div className="mt-4 bg-gray-800 rounded-lg p-4">
-          <h3 className="text-lg font-bold mb-2">Debug Info :</h3>
-          <div className="text-sm text-gray-300 space-y-1">
-            <p>• Connexion: {isConnected ? '✅' : '❌'}</p>
-            <p>• Joueur ID: {playerId || 'Non assigné'}</p>
-            <p>• Image chargée: {imageData ? '✅' : '❌'}</p>
-            <p>• État du jeu: {gameState ? '✅' : '❌'}</p>
-          </div>
-        </div>
+        <div className="hint-text" style={{marginTop: 12}}>Score: {gameState.player1.score}</div>
+        {gameOver && (
+          <div className="hint-text" style={{marginTop: 8, color: '#a7f3d0'}}>Drone détecté ! Partie terminée</div>
+        )}
       </div>
     </div>
   );

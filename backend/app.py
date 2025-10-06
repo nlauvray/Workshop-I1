@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import json
@@ -40,6 +40,7 @@ class GameRoom:
         self.can_see_drone = {}  # player_id -> bool
         self.first_assigned = False  # vision assigned for first player
         self.secret_assigned = False  # vision assigned for both players
+        self.player_names: Dict[int, str] = {}
         self.game_state = {
             "player1": {
                 "mode": "NVG", 
@@ -215,6 +216,19 @@ async def create_room():
     game_rooms[room_id] = GameRoom(room_id)
     return {"room_id": room_id, "message": "Salle créée avec succès"}
 
+@app.get("/rooms/{room_id}")
+async def get_room(room_id: str):
+    """Retourne des infos si la salle existe, sinon 404"""
+    if room_id in game_rooms:
+        room = game_rooms[room_id]
+        return {
+            "exists": True,
+            "players": len(room.players),
+            "game_started": room.game_state["game_started"],
+            "names": list(room.player_names.values()),
+        }
+    raise HTTPException(status_code=404, detail="Room not found")
+
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
     await websocket.accept()
@@ -239,9 +253,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     
     room.players[player_id] = websocket
 
-    # Si c'est le premier joueur: attribuer aléatoirement la vision
+    # Si c'est le premier joueur: lui permettre de VOIR le drone pour les tests solo
     if len(room.players) == 1 and not room.first_assigned and not room.secret_assigned:
-        room.can_see_drone[player_id] = bool(random.getrandbits(1))
+        room.can_see_drone[player_id] = True
         room.first_assigned = True
 
     # Lorsque 2 joueurs sont présents: garantir qu'au moins un voit le drone
@@ -267,8 +281,17 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
             "image_data": room.get_image_data(player_id, room.game_state[f"player{player_id}"]["mode"]),
             "game_started": room.game_state["game_started"]
         }
-        await websocket.send_text(json.dumps(current_state))
-        print(f"📤 État initial envoyé au joueur {player_id}")
+        try:
+            await websocket.send_text(json.dumps(current_state))
+            print(f"📤 État initial envoyé au joueur {player_id}")
+        except Exception as send_err:
+            # Client fermé avant l'envoi → nettoyer et sortir proprement
+            print(f"❌ Envoi état initial échoué: {send_err}")
+            if player_id in room.players:
+                del room.players[player_id]
+            if websocket in room.connections:
+                room.connections.remove(websocket)
+            return
         
         while True:
             # Attendre les commandes du client
@@ -313,6 +336,20 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         "position": command,
                         "new_score": room.game_state[f"player{player_id}"]["score"]
                     })
+            elif command["type"] == "set_name":
+                desired = str(command.get("name", "")).strip()
+                if len(desired) == 0:
+                    await websocket.send_text(json.dumps({"type": "name_status", "ok": False, "reason": "empty"}))
+                    continue
+                # Limiter longueur
+                desired = desired[:32]
+                # Unicité (insensible à la casse)
+                lower_names = {pid: n.lower() for pid, n in room.player_names.items()}
+                if any(n == desired.lower() for pid, n in lower_names.items() if pid != player_id):
+                    await websocket.send_text(json.dumps({"type": "name_status", "ok": False, "reason": "duplicate"}))
+                    continue
+                room.player_names[player_id] = desired
+                await websocket.send_text(json.dumps({"type": "name_status", "ok": True, "name": desired}))
                     
             elif command["type"] == "switch_player":
                 room.game_state["current_player"] = 2 if room.game_state["current_player"] == 1 else 1
@@ -322,6 +359,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 })
             
     except WebSocketDisconnect:
+        if player_id in room.players:
+            del room.players[player_id]
+        if websocket in room.connections:
+            room.connections.remove(websocket)
+        if len(room.players) == 0:
+            del game_rooms[room_id]
+    except Exception as e:
+        # Autres erreurs WebSocket
+        print(f"❌ Erreur WebSocket inattendue: {e}")
         if player_id in room.players:
             del room.players[player_id]
         if websocket in room.connections:
