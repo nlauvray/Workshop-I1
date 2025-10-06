@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: numpu
+Version: 0.1.4
+Summary: Quick chat shortcuts for g4f and HuggingFace models
+Home-page: UNKNOWN
+Author: aaaroo
+Author-email: you@example.com
+License: UNKNOWN
+Platform: UNKNOWN
+Requires-Python: >=3.7
+Requires-Dist: g4f (>=0.1.0)
+Requires-Dist: huggingface-hub (>=0.23.0)
+
+UNKNOWN
+
