@@ -1,0 +1,89 @@
+Nom : 
+
+
+Organisation : IA de création de drone dysfonctionnelle qui échappe au contrôle de l'entreprise
+
+
+
+Debrief de la mission (voix IA) 
+Coop 
+
+Salle 1 Analyse du réseau 
+
+On commence dans un aéroport avec le matériel suivant : 
+	- Appareil photo (mode thermique, infra rouge, vision nocturne)
+	- Appareil GPS 
+	- Radio 
+	- Carte 
+
+Deux photos de ciel, une avec le drone caché, l'autre non, une fois découvert, l'autre doit prendre l'appareil GPS pour taper le code
+
+- Prendre le drone en photo avec la vision thermique 
+- Celui qui a pris le drone en photo donne le code à l'autre qui le rentre dans l'appareil GPS 
+- Ajouter le code dans l'appareil GPS pour récupérer le signal 
+- Analyser le signal pour trouver des coordonnées (latitude/longitude) sur une carte 
+
+
+Salle 2 - Créateur
+
+- Ce rendre au lieu trouver 
+Salle en deux parties 
+- Rentrer dans une pièce avec plusieurs éléments : 
+	- Joueur 1
+	- Livres (plusieurs pour trouver le bon déchiffrement de code pour déverrouiller le coffre)
+	- Coffre fort 
+
+	- Joueur 2 
+	- Livre IA (présentation de l'IA qui crée des drones)
+	- Page (mdp chiffré dessus)
+
+
+	- Carte de l'Europe 
+- Après ouverture du coffre fort avec une clé USB 
+
+
+Salle 3 - Le réseau fantôme 
+
+- Après ouverture de la clé USB 
+- Récupération des données 
+	- Email 
+	- Logs falsifiés 
+
+- Objectif de trouver des données Coop 
+	- Adresse IP (Information sur l'IA)
+	- Signatures (Nom de l'entreprise)
+	- Fuseaux horaires (Lieux de l'entreprise trouvé)
+	- Messages vocaux (Comprendre que l'entreprise n'est pas au courant du problème)
+
+- Quand on avance un peu, lancement d'un minuteur (analyse des données par l'IA), si nous n'arrivons pas à sortir des données avant la fin de l'analyse, perdu) 
+- L'un va avoir des chiffres dans le désordre et va devoir les dire à l'autre qui va tester les chiffres un à un pour avoir le code final et arrêter l'analyse en cours
+- On découvre que l'entreprise cherche le drone qui a été pris en photo 
+- Lien entre l'IA et le drone en question (vocaux pour l'explication)
+- Découverte que l'IA essaie de prendre le contrôle de tout les drones 
+
+- Fin
+
+
+
+
+
+
+
+
+Techno 
+Front React Tailwind 
+
+Chat vocal en jeu 
+
+Code de partie 
+
+
+
+
+
+
+
+
+
+
+

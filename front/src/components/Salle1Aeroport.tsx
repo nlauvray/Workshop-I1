@@ -171,10 +171,11 @@ const Salle1Aeroport: React.FC<Salle1Props> = ({ session, onNext }) => {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'flex-start',
-          background: 'rgba(255,255,255,0.80)',
-          borderTopRightRadius: 32,
-          borderBottomRightRadius: 32,
-          boxShadow: '2px 0 16px #0002',
+          // Suppression de l'overlay blanc pour laisser voir l'image d'arrière-plan
+          background: 'transparent',
+          borderTopRightRadius: 0,
+          borderBottomRightRadius: 0,
+          boxShadow: 'none',
         }}
       >
         <h2>Bienvenue dans la Salle 1 : Aéroport</h2>
@@ -188,35 +189,49 @@ const Salle1Aeroport: React.FC<Salle1Props> = ({ session, onNext }) => {
         {coords && <button onClick={onNext} style={{ marginTop: 32 }}>Passer à la salle suivante</button>}
       </div>
 
-      {/* Inventaire */}
+      {/* Inventaire (style Minecraft) */}
       <div
         style={{
-          width: 340,
-          background: '#f5f5faee',
+          width: 360,
           padding: 24,
-          boxShadow: '-2px 0 16px #0002',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 24,
-          alignItems: 'center',
           minHeight: '100vh',
           position: 'relative',
           zIndex: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16,
+          // panneau sombre type Minecraft
+          background: '#2f2f2fcc',
+          boxShadow: '-2px 0 16px #0006, inset 0 0 0 2px #1a1a1a, inset 0 0 0 4px #4a4a4a',
+          borderLeft: '4px solid #000',
         }}
       >
-        <h3>Inventaire</h3>
-        <button style={objBtnStyle} onClick={() => setPopup('photo')} disabled={photoTaken} title="Appareil photo">
-          <img src={photoIcon} alt="Appareil photo" style={imgBtnStyle} />
-        </button>
-        <button style={objBtnStyle} onClick={() => setPopup('gps')} disabled={!photoTaken} title="Appareil GPS">
-          <img src={gpsIcon} alt="Appareil GPS" style={imgBtnStyle} />
-        </button>
-        <button style={objBtnStyle} onClick={() => setPopup('radio')} title="Radio">
-          <img src={radioIcon} alt="Radio" style={imgBtnStyle} />
-        </button>
-        <button style={objBtnStyle} onClick={() => setPopup('carte')} disabled={!gpsValidated} title="Carte">
-          <img src={mapIcon} alt="Carte" style={imgBtnStyle} />
-        </button>
+        <h3 style={{
+          color: '#eee',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          margin: 0,
+          padding: '8px 0',
+          width: '100%',
+          textAlign: 'center',
+          borderBottom: '2px solid #1a1a1a',
+        }}>Inventaire</h3>
+
+        <div style={invGridStyle}>
+          <button style={slotBtnStyle} onClick={() => setPopup('photo')} disabled={photoTaken} title="Appareil photo">
+            <img src={photoIcon} alt="Appareil photo" style={imgBtnStyle} />
+          </button>
+          <button style={slotBtnStyle} onClick={() => setPopup('gps')} disabled={!photoTaken} title="Appareil GPS">
+            <img src={gpsIcon} alt="Appareil GPS" style={imgBtnStyle} />
+          </button>
+          <button style={slotBtnStyle} onClick={() => setPopup('radio')} title="Radio">
+            <img src={radioIcon} alt="Radio" style={imgBtnStyle} />
+          </button>
+          <button style={slotBtnStyle} onClick={() => setPopup('carte')} disabled={!gpsValidated} title="Carte">
+            <img src={mapIcon} alt="Carte" style={imgBtnStyle} />
+          </button>
+        </div>
       </div>
 
       {popup && (
@@ -232,16 +247,26 @@ const Salle1Aeroport: React.FC<Salle1Props> = ({ session, onNext }) => {
 };
 
 // Styles
-const objBtnStyle: React.CSSProperties = {
-  padding: '16px',
-  fontSize: '1.1em',
-  borderRadius: '8px',
-  border: '1px solid #bbb',
-  background: '#fff',
+const invGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, 96px)',
+  gridTemplateRows: 'repeat(2, 96px)',
+  gap: 12,
+  marginTop: 8,
+};
+
+const slotBtnStyle: React.CSSProperties = {
+  width: 96,
+  height: 96,
+  background: '#8d8d8d',
+  border: '2px solid #6b6b6b',
+  boxShadow: 'inset 0 2px 0 #bdbdbd, inset 0 -2px 0 #5a5a5a, 0 2px 4px #0005',
+  borderRadius: 2,
   cursor: 'pointer',
-  marginBottom: '8px',
-  boxShadow: '0 2px 6px #0001',
-  transition: 'background 0.2s',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'transform 0.05s ease',
 };
 
 const imgBtnStyle: React.CSSProperties = {
