@@ -33,7 +33,7 @@ app.mount(
 game_rooms: Dict[str, Dict] = {}
 
 class GameRoom:
-    def __init__(self, room_id: str):
+    def __init__(self, room_id: str, is_private: bool = False, solo: bool = False):
         self.room_id = room_id
         self.players = {}
         self.connections = []
@@ -41,6 +41,8 @@ class GameRoom:
         self.first_assigned = False  # vision assigned for first player
         self.secret_assigned = False  # vision assigned for both players
         self.player_names: Dict[int, str] = {}
+        self.is_private = is_private
+        self.solo = solo
         self.game_state = {
             "player1": {
                 "mode": "NVG", 
@@ -123,8 +125,12 @@ class GameRoom:
         if mode == "NVG":
             overlay_img = self.images["nvg_small"].copy()
         elif mode == "THERMAL":
-            can_see = self.can_see_drone.get(player_id, True)
-            overlay_img = self.images["thermal_small"].copy() if can_see else self.images["thermal_small_nodrone"].copy()
+            if getattr(self, 'solo', False):
+                # Solo: toujours l'image thermique avec drone, pas de version sans drone
+                overlay_img = self.images["thermal_small"].copy()
+            else:
+                can_see = self.can_see_drone.get(player_id, True)
+                overlay_img = self.images["thermal_small"].copy() if can_see else self.images["thermal_small_nodrone"].copy()
 
         if overlay_img is not None:
             lens_size = 60
@@ -134,8 +140,11 @@ class GameRoom:
             y1 = min(img.shape[0], y0 + lens_size)
             img[y0:y1, x0:x1] = overlay_img[y0:y1, x0:x1]
 
+        return self._encode_image(img)
+
+    def _encode_image(self, img_np):
         import io
-        pil_img = Image.fromarray(img.astype('uint8'))
+        pil_img = Image.fromarray(img_np.astype('uint8'))
         buffer = io.BytesIO()
         pil_img.save(buffer, format='JPEG', quality=85, optimize=True)
         img_str = base64.b64encode(buffer.getvalue()).decode()
@@ -203,6 +212,8 @@ async def get_rooms():
     """Retourne la liste des salles disponibles"""
     rooms_info = {}
     for room_id, room in game_rooms.items():
+        if getattr(room, 'is_private', False):
+            continue  # ne pas lister les salles privées (solo)
         rooms_info[room_id] = {
             "players": len(room.players),
             "game_started": room.game_state["game_started"]
@@ -215,6 +226,13 @@ async def create_room():
     room_id = str(uuid.uuid4())[:8]
     game_rooms[room_id] = GameRoom(room_id)
     return {"room_id": room_id, "message": "Salle créée avec succès"}
+
+@app.post("/rooms/private")
+async def create_private_room():
+    """Crée une salle privée (solo), non listée"""
+    room_id = f"solo-{str(uuid.uuid4())[:8]}"
+    game_rooms[room_id] = GameRoom(room_id, is_private=True, solo=True)
+    return {"room_id": room_id, "message": "Salle privée créée"}
 
 @app.get("/rooms/{room_id}")
 async def get_room(room_id: str):
@@ -245,6 +263,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     if len(room.players) == 0:
         player_id = 1
     elif len(room.players) == 1:
+        # En solo, refuser un second joueur
+        if getattr(room, 'is_private', False):
+            await websocket.close()
+            return
         player_id = 2
         room.game_state["game_started"] = True
     else:
@@ -253,9 +275,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     
     room.players[player_id] = websocket
 
-    # Si c'est le premier joueur: lui permettre de VOIR le drone pour les tests solo
+    # Si c'est le premier joueur
     if len(room.players) == 1 and not room.first_assigned and not room.secret_assigned:
-        room.can_see_drone[player_id] = True
+        # Solo: toujours visible. Multi: attribution aléatoire comme avant
+        room.can_see_drone[player_id] = True if getattr(room, 'solo', False) else bool(random.getrandbits(1))
         room.first_assigned = True
 
     # Lorsque 2 joueurs sont présents: garantir qu'au moins un voit le drone

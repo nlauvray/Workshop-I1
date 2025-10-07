@@ -12,6 +12,7 @@ const Lobby = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState('');
   const [rooms, setRooms] = useState({});
+  const [mode, setMode] = useState('solo'); // 'solo' | 'multi'
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,6 +40,10 @@ const Lobby = () => {
     setIsChecking(true);
     try {
       const res = await axios.get(`${API_BASE_URL}/rooms/${code}`);
+      if ((res.data && res.data.players) >= 2) {
+        setError('Salle complète');
+        return;
+      }
       const names = (res.data && res.data.names) || [];
       if (names.map(n => String(n).toLowerCase()).includes(playerName.trim().toLowerCase())) {
         setError('Ce pseudonyme est déjà utilisé dans cette salle.');
@@ -54,7 +59,8 @@ const Lobby = () => {
 
   const createRoom = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/rooms`);
+      const url = mode === 'solo' ? `${API_BASE_URL}/rooms/private` : `${API_BASE_URL}/rooms`;
+      const response = await axios.post(url);
       navigate(`/game/${response.data.room_id}`);
     } catch (error) {
       console.error('Erreur lors de la création de la salle:', error);
@@ -75,7 +81,12 @@ const Lobby = () => {
       </div>
 
       <div className="panel fade-in">
-        <h2 className="panel-title">Créer une partie</h2>
+        <h2 className="panel-title">Choisir le mode</h2>
+        <div className="action-row" style={{marginBottom: 12}}>
+          <button className={`btn ${mode === 'solo' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('solo')}>1 joueur</button>
+          <button className={`btn ${mode === 'multi' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('multi')}>2 joueurs</button>
+        </div>
+        <h2 className="panel-title">Créer une partie {mode === 'solo' ? 'solo' : '2 joueurs'}</h2>
         <div className="form-group">
           <input
             type="text"
@@ -89,12 +100,24 @@ const Lobby = () => {
         </div>
       </div>
 
-      {Object.keys(rooms).length > 0 && (
+      {mode === 'multi' && Object.keys(rooms).length > 0 && (
         <div className="panel fade-in" style={{ marginTop: 16 }}>
           <h2 className="panel-title">Rejoindre une salle</h2>
           <div className="rooms">
             {Object.entries(rooms).map(([id, info]) => (
-              <button key={id} className={`room-card ${roomId === id ? 'selected' : ''}`} onClick={() => setRoomId(id)}>
+              <button
+                key={id}
+                className={`room-card ${roomId === id ? 'selected' : ''}`}
+                onClick={() => {
+                  if ((info.players || 0) >= 2) {
+                    setError('Salle complète');
+                    setRoomId('');
+                    return;
+                  }
+                  setError('');
+                  setRoomId(id);
+                }}
+              >
                 <div className="room-id">{id}</div>
                 <div className="room-sub">
                   {info.players} joueur{info.players > 1 ? 's' : ''} · {info.game_started ? 'En cours' : 'En attente'}
