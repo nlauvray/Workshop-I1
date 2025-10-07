@@ -1,20 +1,25 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import './App.css';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
-import './App.css';
+import DesktopGame from './components/DesktopGame';
 
-function App() {
+const App = () => {
   return (
-    <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/" element={<Lobby />} />
-          <Route path="/game/:roomId" element={<Game />} />
-        </Routes>
-      </div>
-    </Router>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Lobby />} />
+        {/* Existing drone game */}
+        <Route path="/game/:roomId" element={<Game />} />
+        {/* New desktop game */}
+        <Route path="/desktop/:roomId" element={<DesktopGame />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;
+
+

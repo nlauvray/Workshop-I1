@@ -33,7 +33,7 @@ app.mount(
 game_rooms: Dict[str, Dict] = {}
 
 class GameRoom:
-    def __init__(self, room_id: str, is_private: bool = False, solo: bool = False):
+    def __init__(self, room_id: str, is_private: bool = False, solo: bool = False, game_type: str = "drone"):
         self.room_id = room_id
         self.players = {}
         self.connections = []
@@ -43,6 +43,7 @@ class GameRoom:
         self.player_names: Dict[int, str] = {}
         self.is_private = is_private
         self.solo = solo
+        self.game_type = game_type  # 'drone' | 'desktop'
         self.game_state = {
             "player1": {
                 "mode": "NVG", 
@@ -221,18 +222,20 @@ async def get_rooms():
     return rooms_info
 
 @app.post("/rooms")
-async def create_room():
+async def create_room(payload: Dict = None):
     """Crée une nouvelle salle de jeu"""
     room_id = str(uuid.uuid4())[:8]
-    game_rooms[room_id] = GameRoom(room_id)
-    return {"room_id": room_id, "message": "Salle créée avec succès"}
+    game_type = (payload or {}).get("game_type", "drone") if isinstance(payload, dict) else "drone"
+    game_rooms[room_id] = GameRoom(room_id, game_type=game_type)
+    return {"room_id": room_id, "message": "Salle créée avec succès", "game_type": game_type}
 
 @app.post("/rooms/private")
-async def create_private_room():
+async def create_private_room(payload: Dict = None):
     """Crée une salle privée (solo), non listée"""
     room_id = f"solo-{str(uuid.uuid4())[:8]}"
-    game_rooms[room_id] = GameRoom(room_id, is_private=True, solo=True)
-    return {"room_id": room_id, "message": "Salle privée créée"}
+    game_type = (payload or {}).get("game_type", "drone") if isinstance(payload, dict) else "drone"
+    game_rooms[room_id] = GameRoom(room_id, is_private=True, solo=True, game_type=game_type)
+    return {"room_id": room_id, "message": "Salle privée créée", "game_type": game_type}
 
 @app.get("/rooms/{room_id}")
 async def get_room(room_id: str):
@@ -244,6 +247,7 @@ async def get_room(room_id: str):
             "players": len(room.players),
             "game_started": room.game_state["game_started"],
             "names": list(room.player_names.values()),
+            "game_type": getattr(room, "game_type", "drone"),
         }
     raise HTTPException(status_code=404, detail="Room not found")
 
@@ -297,13 +301,20 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     
     try:
         # Envoyer l'état initial
-        current_state = {
-            "type": "game_state",
-            "player_id": player_id,
-            "game_state": room.game_state,
-            "image_data": room.get_image_data(player_id, room.game_state[f"player{player_id}"]["mode"]),
-            "game_started": room.game_state["game_started"]
-        }
+        # For desktop game, send minimal hello and optional wallpaper; otherwise send current frame
+        if getattr(room, 'game_type', 'drone') == 'desktop':
+            current_state = {
+                "type": "desktop_wallpaper",
+                "url": "http://localhost:8000/images/sky.png"
+            }
+        else:
+            current_state = {
+                "type": "game_state",
+                "player_id": player_id,
+                "game_state": room.game_state,
+                "image_data": room.get_image_data(player_id, room.game_state[f"player{player_id}"]["mode"]),
+                "game_started": room.game_state["game_started"]
+            }
         try:
             await websocket.send_text(json.dumps(current_state))
             print(f"📤 État initial envoyé au joueur {player_id}")
@@ -322,6 +333,25 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
             command = json.loads(data)
             print(f"📥 Commande reçue: {command['type']}")
             
+            # Desktop specific light protocol
+            if getattr(room, 'game_type', 'drone') == 'desktop':
+                if command.get("type") == "desktop_hello":
+                    await websocket.send_text(json.dumps({"type": "desktop_wallpaper", "url": "http://localhost:8000/images/sky.png"}))
+                elif command.get("type") == "set_name":
+                    desired = str(command.get("name", "")).strip()
+                    if len(desired) == 0:
+                        await websocket.send_text(json.dumps({"type": "name_status", "ok": False, "reason": "empty"}))
+                        continue
+                    desired = desired[:32]
+                    lower_names = {pid: n.lower() for pid, n in room.player_names.items()}
+                    if any(n == desired.lower() for pid, n in lower_names.items() if pid != player_id):
+                        await websocket.send_text(json.dumps({"type": "name_status", "ok": False, "reason": "duplicate"}))
+                        continue
+                    room.player_names[player_id] = desired
+                    await websocket.send_text(json.dumps({"type": "name_status", "ok": True, "name": desired}))
+                # Desktop has no other server logic for now
+                continue
+
             if command["type"] == "move":
                 # Mettre à jour la position (dans l'espace 512x512)
                 room.game_state[f"player{player_id}"]["position"] = {

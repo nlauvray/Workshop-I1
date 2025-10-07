@@ -264,3 +264,12 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+
+/* Desktop specific styles */
+.desktop-icon:hover {
+  filter: brightness(1.08);
+}
+
+.mac-desktop .desktop-icon:disabled {
+  opacity: 0.6;
+}
