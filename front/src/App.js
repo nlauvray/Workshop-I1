@@ -15,7 +15,7 @@ const App = () => {
         <Route path="/game/:roomId" element={<Game />} />
         {/* New desktop game */}
         <Route path="/desktop/:roomId" element={<DesktopGame />} />
-        {/* OfficeGame (alias legacy screen2) */}
+        {/* OfficeGame */}
         <Route path="/officeGame/:roomId" element={<OfficeGame />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

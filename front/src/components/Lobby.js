@@ -51,8 +51,8 @@ const Lobby = () => {
       } else {
         const type = (res.data && res.data.game_type) || 'drone';
         if (type === 'desktop') navigate(`/desktop/${code}`);
-        else if (type === 'officeGame' || type === 'screen2') navigate(`/officeGame/${code}`);
-        else navigate(`/game/${code}`);
+        else if (type === 'officeGame') navigate(`/officeGame/${code}`);
+        else navigate(`/game/${code}`); 
       }
     } catch (e) {
       setError("Cette salle n'existe plus. Choisissez-en une autre.");
