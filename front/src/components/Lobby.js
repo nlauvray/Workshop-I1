@@ -13,7 +13,7 @@ const Lobby = () => {
   const [error, setError] = useState('');
   const [rooms, setRooms] = useState({});
   const [mode, setMode] = useState('solo'); // 'solo' | 'multi'
-  const [gameType, setGameType] = useState('drone'); // 'drone' | 'desktop' | 'officeGame'
+  const [gameType, setGameType] = useState('drone'); // 'drone' | 'desktop' | 'officeGame' | 'aeroport'
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,6 +52,7 @@ const Lobby = () => {
         const type = (res.data && res.data.game_type) || 'drone';
         if (type === 'desktop') navigate(`/desktop/${code}`);
         else if (type === 'officeGame') navigate(`/officeGame/${code}`);
+        else if (type === 'aeroport' || type === 'drone') navigate(`/aeroport/${code}`);
         else navigate(`/game/${code}`); 
       }
     } catch (e) {
@@ -68,6 +69,7 @@ const Lobby = () => {
       const id = response.data.room_id;
       if (gameType === 'desktop') navigate(`/desktop/${id}`);
       else if (gameType === 'officeGame') navigate(`/officeGame/${id}`);
+      else if (gameType === 'aeroport' || gameType === 'drone') navigate(`/aeroport/${id}`);
       else navigate(`/game/${id}`);
     } catch (error) {
       console.error('Erreur lors de la création de la salle:', error);
@@ -98,8 +100,10 @@ const Lobby = () => {
           <button className={`btn ${gameType === 'drone' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGameType('drone')}>Drone</button>
           <button className={`btn ${gameType === 'desktop' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGameType('desktop')}>Desktop</button>
           <button className={`btn ${gameType === 'officeGame' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGameType('officeGame')}>OfficeGame</button>
+          <button className={`btn ${gameType === 'aeroport' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGameType('aeroport')}>Aéroport</button>
         </div>
-        <h2 className="panel-title">Créer une partie {mode === 'solo' ? 'solo' : '2 joueurs'} · {gameType === 'desktop' ? 'Desktop' : gameType === 'officeGame' ? 'OfficeGame' : 'Drone'}</h2>
+        
+        <h2 className="panel-title">Créer une partie {mode === 'solo' ? 'solo' : '2 joueurs'} · {gameType === 'desktop' ? 'Desktop' : gameType === 'officeGame' ? 'OfficeGame' : gameType === 'aeroport' ? 'Aéroport' : 'Drone'}</h2>
         <div className="form-group">
           <input
             type="text"

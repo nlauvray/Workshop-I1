@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 const API_BASE_URL = 'ws://localhost:8000';
 
@@ -7,11 +7,15 @@ const Game = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const wsRef = useRef(null);
-  const playerName = typeof window !== 'undefined'
+  const location = useLocation();
+  const isEmbed = typeof window !== 'undefined' && new URLSearchParams(location.search).get('embed') === '1';
+  const initialName = typeof window !== 'undefined'
     ? (localStorage.getItem('playerName') || 'Joueur')
     : 'Joueur';
+  const [displayName, setDisplayName] = useState(initialName);
   const [gameState, setGameState] = useState(null);
   const [playerId, setPlayerId] = useState(null);
+  const playerIdRef = useRef(null);
   const [imageData, setImageData] = useState('');
   const [mousePosition, setMousePosition] = useState({ x: 400, y: 300 });
   const [isConnected, setIsConnected] = useState(false);
@@ -29,7 +33,7 @@ const Game = () => {
       setIsConnected(true);
       // Envoyer le nom au serveur pour validation et enregistrement
       try {
-        ws.send(JSON.stringify({ type: 'set_name', name: playerName }));
+        ws.send(JSON.stringify({ type: 'set_name', name: initialName }));
       } catch {}
     };
 
@@ -41,6 +45,7 @@ const Game = () => {
         if (data.type === 'game_state') {
           setGameState(data.game_state);
           setPlayerId(data.player_id);
+          playerIdRef.current = data.player_id;
           setImageData(data.image_data);
           console.log('🎮 État du jeu mis à jour');
         } else if (data.type === 'frame') {
@@ -56,15 +61,21 @@ const Game = () => {
           setMousePosition({ x: data.position.x, y: data.position.y });
           
         } else if (data.type === 'drone_detected') {
-          setShowDronePhoto(true); // afficher le visuel du drone
-          setGameOver(true); // partie terminée
-          setFlash(true);
-          setTimeout(() => setFlash(false), 250);
+          // Afficher la photo du drone uniquement au joueur qui l'a détecté
+          if (data.player_id === playerIdRef.current) {
+            setShowDronePhoto(true);
+            setGameOver(true);
+            setFlash(true);
+            setTimeout(() => setFlash(false), 250);
+          }
         } else if (data.type === 'player_switched') {
           console.log(`🔄 Joueur actuel: ${data.current_player}`);
         } else if (data.type === 'name_status') {
           if (!data.ok) {
             alert(data.reason === 'duplicate' ? 'Ce pseudonyme est déjà pris dans cette salle.' : 'Nom invalide');
+          } else if (data.ok && data.name) {
+            setDisplayName(String(data.name));
+            try { localStorage.setItem('playerName', String(data.name)); } catch {}
           }
         }
       } catch (error) {
@@ -88,7 +99,7 @@ const Game = () => {
         wsRef.current.close();
       }
     };
-  }, [roomId, playerName]);
+  }, [roomId, initialName]);
 
   const sendCommand = (command) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -177,16 +188,20 @@ const Game = () => {
 
   return (
     <div className="join-page">
-      <div className="hero fade-in" style={{marginBottom: 12}}>
-        <h1 className="hero-title">🎮 ESCAPE TECH</h1>
-        <p className="hero-subtitle">Salle {roomId} · {isConnected ? 'Connecté' : 'Déconnecté'}</p>
-      </div>
+      {!isEmbed && (
+        <div className="hero fade-in" style={{marginBottom: 12}}>
+          <h1 className="hero-title">🎮 ESCAPE TECH</h1>
+          <p className="hero-subtitle">Salle {roomId} · {isConnected ? 'Connecté' : 'Déconnecté'}</p>
+        </div>
+      )}
 
       <div className="panel fade-in" style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-        <div style={{display: 'flex', gap: 8, marginBottom: 12}}>
-          <div className="hint-text">{playerName} (Joueur {playerId})</div>
-          <button onClick={() => navigate('/')} className="btn btn-secondary">Quitter</button>
-        </div>
+        {!isEmbed && (
+          <div style={{display: 'flex', gap: 8, marginBottom: 12}}>
+            <div className="hint-text">{displayName} (Joueur {playerId})</div>
+            <button onClick={() => navigate('/')} className="btn btn-secondary">Quitter</button>
+          </div>
+        )}
 
         <div style={{display: 'flex', gap: 8, marginBottom: 16}}>
           <button onClick={() => changeMode('BASE')} className="btn btn-secondary">Base</button>
@@ -242,7 +257,6 @@ const Game = () => {
           />
         </div>
 
-        <div className="hint-text" style={{marginTop: 12}}>Score: {gameState.player1.score}</div>
         {gameOver && (
           <div className="hint-text" style={{marginTop: 8, color: '#a7f3d0'}}>Drone détecté ! Partie terminée</div>
         )}
