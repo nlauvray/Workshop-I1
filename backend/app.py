@@ -305,7 +305,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
         if getattr(room, 'game_type', 'drone') == 'desktop':
             current_state = {
                 "type": "desktop_wallpaper",
-                "url": "http://localhost:8000/images/sky.png"
+                "url": "http://localhost:8000/images/os-x-mountain-lion-3840x2160-24066.jpg"
             }
         else:
             current_state = {
@@ -336,7 +336,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
             # Desktop specific light protocol
             if getattr(room, 'game_type', 'drone') == 'desktop':
                 if command.get("type") == "desktop_hello":
-                    await websocket.send_text(json.dumps({"type": "desktop_wallpaper", "url": "http://localhost:8000/images/sky.png"}))
+                    await websocket.send_text(json.dumps({"type": "desktop_wallpaper", "url": "http://localhost:8000/images/os-x-mountain-lion-3840x2160-24066.jpg"}))
                 elif command.get("type") == "set_name":
                     desired = str(command.get("name", "")).strip()
                     if len(desired) == 0:
