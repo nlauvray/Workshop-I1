@@ -6,7 +6,7 @@ import photoIcon from '../assets/camera.png';
 import gpsIcon from '../assets/radar.png';
 import radioIcon from '../assets/walkie_talkie.png';
 import mapIcon from '../assets/map.png';
-import bgAeroport from '../assets/airport.jpg';
+import bgAeroport from '../assets/airport.png';
 
 interface Salle1Props {
   session: { mode: 'create' | 'join'; code: string; pseudo: string };
@@ -15,29 +15,6 @@ interface Salle1Props {
 
 const droneCode = 'D1234';
 type PopupType = null | 'photo' | 'gps' | 'radio' | 'carte';
-
-const LocationMarker: React.FC<{ coords: string; setCoords: (c: string) => void }> = ({ coords, setCoords }) => {
-  const pos = coords
-    ? (coords.split(',').map(Number) as [number, number])
-    : null;
-
-  const markerIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    shadowSize: [41, 41],
-  });
-
-  useMapEvents({
-    click(e) {
-      setCoords(`${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`);
-    },
-  });
-
-  return pos ? <Marker position={pos} icon={markerIcon} /> : null;
-};
 
 const MapWithMarker: React.FC<{
   center: [number, number],
@@ -183,16 +160,15 @@ const Salle1Aeroport: React.FC<Salle1Props> = ({ session, onNext }) => {
           Session : {session.mode === 'create' ? 'Créateur' : 'Participant'} | Code : {session.code || '(auto)'} | Pseudo : {session.pseudo}
         </p>
         <div style={{ margin: '32px 0' }}>
-          <b>Scène :</b> Deux photos de ciel, une avec le drone caché, l'autre non.<br />
-          <span style={{ color: '#888' }}>Utilisez les objets de l'inventaire pour progresser.</span>
-        </div>
+          <span style={{ color: '#888' }}></span>
+        </div>  
         {coords && <button onClick={onNext} style={{ marginTop: 32 }}>Passer à la salle suivante</button>}
       </div>
 
       {/* Inventaire (style Minecraft) */}
       <div
         style={{
-          width: 360,
+          width: 200,
           padding: 24,
           minHeight: '100vh',
           position: 'relative',
@@ -248,9 +224,9 @@ const Salle1Aeroport: React.FC<Salle1Props> = ({ session, onNext }) => {
 
 // Styles
 const invGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, 96px)',
-  gridTemplateRows: 'repeat(2, 96px)',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
   gap: 12,
   marginTop: 8,
 };
