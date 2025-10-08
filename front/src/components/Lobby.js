@@ -13,7 +13,7 @@ const Lobby = () => {
   const [error, setError] = useState('');
   const [rooms, setRooms] = useState({});
   const [mode, setMode] = useState('solo'); // 'solo' | 'multi'
-  const [gameType, setGameType] = useState('aeroport'); // 'aeroport' | 'desktop' | 'officeGame'
+  const [gameType, setGameType] = useState('aeroport'); // 'aeroport' uniquement
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,12 +48,9 @@ const Lobby = () => {
       const names = (res.data && res.data.names) || [];
       if (names.map(n => String(n).toLowerCase()).includes(playerName.trim().toLowerCase())) {
         setError('Ce pseudonyme est déjà utilisé dans cette salle.');
-      } else {
-        const type = (res.data && res.data.game_type) || 'aeroport';
-        if (type === 'desktop') navigate(`/desktop/${code}`);
-        else if (type === 'officeGame') navigate(`/officeGame/${code}`);
-        else navigate(`/aeroport/${code}`); // Par défaut, aller vers aeroport 
-      }
+        } else {
+          navigate(`/aeroport/${code}`); // Toujours aller vers aeroport
+        }
     } catch (e) {
       setError("Cette salle n'existe plus. Choisissez-en une autre.");
     } finally {
@@ -66,9 +63,7 @@ const Lobby = () => {
       const url = mode === 'solo' ? `${API_BASE_URL}/rooms/private` : `${API_BASE_URL}/rooms`;
       const response = await axios.post(url, { game_type: gameType });
       const id = response.data.room_id;
-      if (gameType === 'desktop') navigate(`/desktop/${id}`);
-      else if (gameType === 'officeGame') navigate(`/officeGame/${id}`);
-      else navigate(`/aeroport/${id}`); // Par défaut, aller vers aeroport
+      navigate(`/aeroport/${id}`); // Toujours aller vers aeroport
     } catch (error) {
       console.error('Erreur lors de la création de la salle:', error);
     }
@@ -95,12 +90,10 @@ const Lobby = () => {
         </div>
         <h2 className="panel-title">Sélection du jeu</h2>
         <div className="action-row" style={{marginBottom: 12}}>
-          <button className={`btn ${gameType === 'aeroport' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGameType('aeroport')}>Aéroport (Principal)</button>
-          <button className={`btn ${gameType === 'desktop' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGameType('desktop')}>Desktop</button>
-          <button className={`btn ${gameType === 'officeGame' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setGameType('officeGame')}>OfficeGame</button>
+          <button className="btn btn-primary">Aéroport (Principal)</button>
         </div>
         
-        <h2 className="panel-title">Créer une partie {mode === 'solo' ? 'solo' : '2 joueurs'} · {gameType === 'desktop' ? 'Desktop' : gameType === 'officeGame' ? 'OfficeGame' : 'Aéroport'}</h2>
+        <h2 className="panel-title">Créer une partie {mode === 'solo' ? 'solo' : '2 joueurs'} · Aéroport</h2>
         <div className="form-group">
           <input
             type="text"

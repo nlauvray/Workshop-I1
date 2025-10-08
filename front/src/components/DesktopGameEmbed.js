@@ -1,22 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { BACKEND_WS_BASE, imageUrl } from '../config';
+import React, { useEffect, useState } from 'react';
+import { imageUrl } from '../config';
 
-// Dock icons (no labels). Folder icon appears only when the folder window is open
-const DOCK_BASE_ICONS = [
-  { id: 'notes', label: 'Notes', file: 'Notes-1.png', clickable: true },
-  { id: 'mail', label: 'Mail', file: 'gmail_256x256x32.png', clickable: false },
-  { id: 'calc', label: 'Calculatrice', file: 'calc 2_256x256x32.png', clickable: false },
-  { id: 'clock', label: 'Horloge', file: 'clock 3_256x256x32.png', clickable: false },
-  { id: 'trash', label: 'Corbeille', file: 'user-trash_256x256x32.png', clickable: false },
-];
-const FOLDER_ICON = { id: 'folder', label: 'Dossier', file: 'folder_256x256x32.png', clickable: true };
-
-const DesktopGame = () => {
-  const { roomId } = useParams();
-  const navigate = useNavigate();
-  const wsRef = useRef(null);
-  const [isConnected, setIsConnected] = useState(false);
+// Composant DesktopGameEmbed qui intègre le vrai DesktopGame
+function DesktopGameEmbed({ roomId, playerName, onBack }) {
+  const [isConnected, setIsConnected] = useState(true); // Simulé comme connecté
   const [folderOpen, setFolderOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const notesKey = `notes_${roomId}`;
@@ -29,30 +16,16 @@ const DesktopGame = () => {
   const [dragTarget, setDragTarget] = useState(null); // 'folder' | 'notes' | null
   const [dragOffset, setDragOffset] = useState({ dx: 0, dy: 0 });
   const [wallpaper, setWallpaper] = useState(imageUrl('/images/os-x-mountain-lion-3840x2160-24066.jpg'));
-  const playerName = typeof window !== 'undefined'
-    ? (localStorage.getItem('playerName') || 'Joueur')
-    : 'Joueur';
 
-  useEffect(() => {
-    const ws = new WebSocket(`${BACKEND_WS_BASE}/ws/${roomId}`);
-    wsRef.current = ws;
-    ws.onopen = () => {
-      setIsConnected(true);
-      try { ws.send(JSON.stringify({ type: 'set_name', name: playerName })); } catch {}
-      // Ask server for desktop metadata (e.g., wallpaper in future)
-      try { ws.send(JSON.stringify({ type: 'desktop_hello' })); } catch {}
-    };
-    ws.onmessage = (evt) => {
-      try {
-        const data = JSON.parse(evt.data);
-        if (data.type === 'desktop_wallpaper' && data.url) {
-          setWallpaper(data.url);
-        }
-      } catch {}
-    };
-    ws.onclose = () => setIsConnected(false);
-    return () => { try { ws.close(); } catch {} };
-  }, [roomId, playerName]);
+  // Dock icons (no labels). Folder icon appears only when the folder window is open
+  const DOCK_BASE_ICONS = [
+    { id: 'notes', label: 'Notes', file: 'Notes-1.png', clickable: true },
+    { id: 'mail', label: 'Mail', file: 'gmail_256x256x32.png', clickable: false },
+    { id: 'calc', label: 'Calculatrice', file: 'calc 2_256x256x32.png', clickable: false },
+    { id: 'clock', label: 'Horloge', file: 'clock 3_256x256x32.png', clickable: false },
+    { id: 'trash', label: 'Corbeille', file: 'user-trash_256x256x32.png', clickable: false },
+  ];
+  const FOLDER_ICON = { id: 'folder', label: 'Dossier', file: 'folder_256x256x32.png', clickable: true };
 
   useEffect(() => {
     try { sessionStorage.setItem(notesKey, notesContent); } catch {}
@@ -101,7 +74,7 @@ const DesktopGame = () => {
       <div className="panel fade-in" style={{width: '100%', maxWidth: 920}}>
         <div style={{display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center'}}>
           <div className="hint-text">{playerName}</div>
-          <button onClick={() => navigate('/')} className="btn btn-secondary">Quitter</button>
+          <button onClick={onBack} className="btn btn-secondary">← Retour au bureau</button>
         </div>
 
         <div className="mac-desktop" style={{
@@ -121,7 +94,9 @@ const DesktopGame = () => {
             background: 'rgba(20,20,22,0.55)', color: 'white', display: 'flex', alignItems: 'center', padding: '0 12px',
             backdropFilter: 'saturate(160%) blur(10px)'
           }}>
-            <div style={{fontWeight: 700}}></div>
+            <div style={{fontWeight: 700, fontFamily: 'SF Pro, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 20, lineHeight: '28px'}}>
+              &#63743;
+            </div>
             <div style={{marginLeft: 12, fontSize: 12, opacity: 0.85}}>Finder</div>
           </div>
 
@@ -232,8 +207,6 @@ const DesktopGame = () => {
       </div>
     </div>
   );
-};
+}
 
-export default DesktopGame;
-
-
+export default DesktopGameEmbed;

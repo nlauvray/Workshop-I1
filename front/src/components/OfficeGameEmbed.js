@@ -1,38 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { imageUrl } from '../config';
 
-// Real assets from backend static directory: /images/assets
-const BG_URL = imageUrl('/images/assets/bureauSalle2.png');
-const ICONS = {
-  map: imageUrl('/images/assets/Salle2Map.png'),
-  livreBleu: imageUrl('/images/assets/Salle2LivreBleu.png'),
-  livreVert: imageUrl('/images/assets/Salle2LivreVert.png'),
-  livreRouge: imageUrl('/images/assets/Salle2LivreRouge.png'),
-  livreBureau: imageUrl('/images/assets/Salle2LivreBureau.png'),
-  page: imageUrl('/images/assets/Salle2PageMdp.png'),
-  coffre: imageUrl('/images/assets/Salle2Coffre.png'),
-  europeMap: imageUrl('/images/assets/MapEpingle.png'),
-};
-
-const SAFE_PIN = '5279';
-
-const OfficeGame = () => {
-  const navigate = useNavigate();
-  const playerName = typeof window !== 'undefined'
-    ? (localStorage.getItem('playerName') || 'Joueur')
-    : 'Joueur';
-
-  return (
-    <Salle2Createur
-      session={{ mode: 'create', code: '', pseudo: playerName }}
-      onNext={() => navigate('/')}
-    />
-  );
-};
-
-// --- Main component (converted from TypeScript to JS) ---
-const Salle2Createur = ({ session, onNext }) => {
+// Composant OfficeGameEmbed qui intègre le vrai officeGame
+function OfficeGameEmbed({ roomId, playerName, onBack, onDesktop }) {
   const [popup, setPopup] = useState(null); // null | 'j1' | 'j2' | 'book' | 'page' | 'coffre' | 'carte'
   const [hintFound, setHintFound] = useState(false);
   const [encryptedSeen, setEncryptedSeen] = useState(false);
@@ -47,7 +17,7 @@ const Salle2Createur = ({ session, onNext }) => {
   // Load background image to get natural ratio
   useEffect(() => {
     const img = new Image();
-    img.src = BG_URL;
+    img.src = imageUrl('/images/assets/bureauSalle2.png');
     img.onload = () => setImageNatural({ w: img.naturalWidth, h: img.naturalHeight });
   }, []);
 
@@ -81,7 +51,7 @@ const Salle2Createur = ({ session, onNext }) => {
     width: '100vw',
     display: 'flex',
     backgroundColor: '#000',
-    backgroundImage: `url(${BG_URL})`,
+    backgroundImage: `url(${imageUrl('/images/assets/bureauSalle2.png')})`,
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
     backgroundSize: 'contain',
@@ -92,32 +62,64 @@ const Salle2Createur = ({ session, onNext }) => {
   return (
     <div ref={containerRef} className="salle2-container" style={bgStyle}>
       <div style={{ position: 'absolute', top: 8, left: 12, color: '#fff', textShadow: '0 1px 2px #000' }}>
-        <h2 style={{ margin: 0 }}>Salle 2 : Le Créateur</h2>
-        <small>Session : {session.mode === 'create' ? 'Créateur' : 'Participant'} | Code : {session.code || '(local)'} | Pseudo : {session.pseudo}</small>
+        <h2 style={{ margin: 0 }}>🏢 ESCAPE TECH - Bureau</h2>
+        <small>Salle 2 : Bureau | Code : {roomId} | Pseudo : {playerName}</small>
+      </div>
+
+      {/* Bouton retour */}
+      <div style={{ position: 'absolute', top: 8, right: 12, display: 'flex', gap: 8 }}>
+        <button 
+          onClick={onBack}
+          style={{
+            padding: '8px 16px',
+            background: 'rgba(0,0,0,0.7)',
+            color: 'white',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '12px'
+          }}
+        >
+          ← Aéroport
+        </button>
+        <button 
+          onClick={onDesktop}
+          style={{
+            padding: '8px 16px',
+            background: 'rgba(16, 185, 129, 0.8)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '12px'
+          }}
+        >
+          🖥️ Desktop
+        </button>
       </div>
 
       {/* Hotspots */}
       <div style={hotspotsLayer(bgRect)}>
         <button style={{ ...hotspotImgBtn, ...posMap }} onClick={() => setPopup('carte')} title="Carte de l'Europe">
-          <img src={ICONS.map} alt="Carte" style={hotspotImg} />
+          <img src={imageUrl('/images/assets/Salle2Map.png')} alt="Carte" style={hotspotImg} />
         </button>
         <button style={{ ...hotspotImgBtn, ...posLivreBleu }} onClick={() => { setSelectedBook('bleu'); setPopup('book'); }} title="Livre bleu">
-          <img src={ICONS.livreBleu} alt="Livre bleu" style={hotspotImg} />
+          <img src={imageUrl('/images/assets/Salle2LivreBleu.png')} alt="Livre bleu" style={hotspotImg} />
         </button>
         <button style={{ ...hotspotImgBtn, ...posLivreVert }} onClick={() => { setSelectedBook('vert'); setPopup('book'); }} title="Livre vert">
-          <img src={ICONS.livreVert} alt="Livre vert" style={hotspotImg} />
+          <img src={imageUrl('/images/assets/Salle2LivreVert.png')} alt="Livre vert" style={hotspotImg} />
         </button>
         <button style={{ ...hotspotImgBtn, ...posLivreRouge }} onClick={() => { setSelectedBook('rouge'); setPopup('book'); }} title="Livre rouge">
-          <img src={ICONS.livreRouge} alt="Livre rouge" style={hotspotImg} />
+          <img src={imageUrl('/images/assets/Salle2LivreRouge.png')} alt="Livre rouge" style={hotspotImg} />
         </button>
         <button style={{ ...hotspotImgBtn, ...posLivreBureau }} onClick={() => { setSelectedBook('bureau'); setPopup('book'); }} title="Livre sur le bureau">
-          <img src={ICONS.livreBureau} alt="Livre sur le bureau" style={hotspotImg} />
+          <img src={imageUrl('/images/assets/Salle2LivreBureau.png')} alt="Livre sur le bureau" style={hotspotImg} />
         </button>
         <button style={{ ...hotspotImgBtn, ...posPage }} onClick={() => { setEncryptedSeen(true); setPopup('page'); }} title="Page chiffrée">
-          <img src={ICONS.page} alt="Page" style={hotspotImg} />
+          <img src={imageUrl('/images/assets/Salle2PageMdp.png')} alt="Page" style={hotspotImg} />
         </button>
         <button style={{ ...hotspotImgBtn, ...posCoffre }} onClick={() => setPopup('coffre')} title="Coffre-fort">
-          <img src={ICONS.coffre} alt="Coffre" style={hotspotImg} />
+          <img src={imageUrl('/images/assets/Salle2Coffre.png')} alt="Coffre" style={hotspotImg} />
         </button>
       </div>
 
@@ -125,58 +127,47 @@ const Salle2Createur = ({ session, onNext }) => {
         <div style={{ position: 'absolute', bottom: 16, left: 16, background: '#000a', color: '#fff', padding: 12, borderRadius: 8 }}>
           Clé USB récupérée ! Vous pouvez continuer.
           <div>
-            <button onClick={onNext} style={{ marginTop: 8 }}>Passer à la salle suivante</button>
+            <button onClick={onDesktop} style={{ marginTop: 8 }}>Accéder au Desktop</button>
           </div>
         </div>
       )}
 
       {popup && (
-        <div style={overlayStyle} onClick={() => setPopup(null)}>
-          <div
-            style={popup === 'carte'
-              ? { ...popupStyle, background: 'transparent', padding: 0, borderRadius: 0, boxShadow: 'none', minWidth: 0 }
-              : popupStyle}
-            onClick={(e) => e.stopPropagation()}>
+        <div style={officeOverlayStyle} onClick={() => setPopup(null)}>
+          <div style={officePopupStyle} onClick={(e) => e.stopPropagation()}>
+            {popup === 'carte' && (
+              <div>
+                <h3>Carte de l'Europe</h3>
+                <p>Une carte de l'Europe avec des épingles marquant différentes villes.</p>
+                <img src={imageUrl('/images/assets/MapEpingle.png')} alt="Carte Europe" style={{ maxWidth: '100%', height: 'auto' }} />
+              </div>
+            )}
             {popup === 'book' && (
-              <OpenBook
-                book={selectedBook}
-                onFoundHint={() => setHintFound(true)}
-              />
+              <OpenBook book={selectedBook} onFoundHint={() => setHintFound(true)} />
             )}
             {popup === 'page' && (
-              <>
-                <h3>Page avec mot de passe chiffré</h3>
-                <p style={{ fontFamily: 'monospace' }}>Texte: GFZ JY XZC FQ — indice requis.</p>
-                <p style={{ color: hintFound ? 'green' : '#999' }}>
-                  {hintFound
-                    ? 'Indice confirmé: utiliser Vigenère pour retrouver le PIN du coffre.'
-                    : 'Trouve le bon livre pour savoir comment le décrypter.'}
-                </p>
-              </>
-            )}
-            {popup === 'carte' && (
-              <img
-                src={ICONS.europeMap}
-                alt="Carte de l'Europe"
-                style={{
-                  display: 'block',
-                  maxWidth: '90vw',
-                  maxHeight: '85vh',
-                  width: 'auto',
-                  height: 'auto',
-                  borderRadius: 12,
-                  boxShadow: '0 8px 32px #0006',
-                }}
-              />
+              <div>
+                <h3>Page chiffrée</h3>
+                <p>Une page avec du texte chiffré. Il faut trouver la clé pour la déchiffrer.</p>
+                <img src={imageUrl('/images/assets/Salle2PageMdp.png')} alt="Page chiffrée" style={{ maxWidth: '100%', height: 'auto' }} />
+                {hintFound && (
+                  <div style={{ marginTop: 16, padding: 12, background: '#f0f8ff', borderRadius: 8 }}>
+                    <strong>Indice trouvé :</strong> Utilisez Vigenère avec le mot-clé trouvé dans les livres.
+                  </div>
+                )}
+              </div>
             )}
             {popup === 'coffre' && (
-              <SafePad
-                value={safeCode}
-                onChange={setSafeCode}
+              <SafePad 
+                value={safeCode} 
+                onChange={setSafeCode} 
                 onValidate={() => {
-                  if (safeCode === SAFE_PIN && hintFound && encryptedSeen) setUsbFound(true);
+                  if (safeCode === '5279') {
+                    setUsbFound(true);
+                    setPopup(null);
+                  }
                 }}
-                disabled={usbFound}
+                disabled={false}
                 success={usbFound}
               />
             )}
@@ -185,19 +176,20 @@ const Salle2Createur = ({ session, onNext }) => {
       )}
     </div>
   );
-};
+}
 
-const overlayStyle = {
+// Styles et positions pour officeGame
+const officeOverlayStyle = {
   position: 'fixed',
   inset: 0,
-  background: '#0008',
+  background: 'rgba(0,0,0,0.7)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  zIndex: 100,
+  zIndex: 1000,
 };
 
-const popupStyle = {
+const officePopupStyle = {
   background: '#fff',
   padding: 24,
   borderRadius: 12,
@@ -206,7 +198,6 @@ const popupStyle = {
   color: '#111',
 };
 
-// Hotspots layer and buttons positioned in percentages over the background image
 const hotspotsLayer = (bgRect) => ({
   position: 'absolute',
   left: bgRect ? bgRect.left : 0,
@@ -237,7 +228,7 @@ const hotspotImg = {
   filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
 };
 
-// Approximate positions (may need visual adjustment based on background)
+// Positions des hotspots
 const posMap = { left: '22.5%', top: '25%', width: '27%' };
 const posLivreBleu = { left: '82%', top: '43.2%', width: '4.1%' };
 const posLivreVert = { left: '78.6%', top: '43.5%', width: '1.55%' };
@@ -246,9 +237,7 @@ const posLivreBureau = { left: '54.9%', top: '55.2%', width: '20%' };
 const posPage = { left: '29.6%', top: '60.8%', width: '13.5%' };
 const posCoffre = { left: '73.8%', top: '81.2%', width: '14%' };
 
-export default OfficeGame;
-
-// --- Subcomponents ---
+// Composants pour les livres et le coffre
 function OpenBook({ book, onFoundHint }) {
   if (!book) return null;
   const titleMap = {
@@ -344,3 +333,4 @@ const padBtn = {
   cursor: 'pointer',
 };
 
+export default OfficeGameEmbed;
