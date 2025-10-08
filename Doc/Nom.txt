@@ -74,7 +74,60 @@ Salle 3 - Le réseau fantôme
 
 
 
+Salle 2 Méthodes : 
 
+Première partie de code : 
+Méthode (pour le joueur) :
+
+Lire l’acrostiche → concaténer les premières lettres des lignes (ici V E C T O R) → mot-clé = VECTOR.
+
+Aller sur un solveur Vigenère en ligne (ex. dcode.fr → Vigenère) ou utiliser un outil local.
+
+Entrer le ciphertext ASTMMKRS et la clé VECTOR, puis décrypter.
+
+Solution détaillée (travail pas-à-pas) :
+
+Mot-clé : V E C T O R
+
+Ciphertext : A S T M M K R S
+
+On applique Vigenère (déchiffrement) lettre à lettre :
+
+A (0) − V (21) = (0 − 21) mod 26 = 5 → F
+
+S (18) − E (4) = 14 → O
+
+T (19) − C (2) = 17 → R
+
+M (12) − T (19) = (12 − 19) mod 26 = 19 → T
+
+M (12) − O (14) = (12 − 14) mod 26 = 24 → Y
+
+K (10) − R (17) = (10 − 17) mod 26 = 19 → T
+
+R (17) − V (21) = (17 − 21) mod 26 = 22 → W
+
+S (18) − E (4) = 14 → O
+
+Résultat = F O R T Y T W O → «FORTYTWO» → décoder comme nombre → 42
+
+Fragment obtenu : 42 (ce sont les deux premiers chiffres du code final)
+
+
+
+
+Deuxième partie de code : 
+Les trois symboles gravés : Na, C, Ne.
+
+Trouve leur numéro atomique :
+• Na (Sodium) = 11
+• C (Carbone) = 6
+• Ne (Néon) = 10
+
+Additionne-les :
+11 + 6 + 10 = 27
+
+Ce nombre forme les deux chiffres suivants du code.
 
 
 

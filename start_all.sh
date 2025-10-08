@@ -55,13 +55,18 @@ check_port 3000
 print_status "Démarrage du backend FastAPI..."
 cd "$(dirname "$0")"
 
-# Activer l'environnement virtuel et installer les dépendances
 if [ ! -d "venv" ]; then
     print_status "Création de l'environnement virtuel..."
-    python3 -m venv venv
+    python -m venv venv
 fi
 
-source venv/bin/activate
+# Détection auto Windows / Linux
+if [ -f "venv/Scripts/activate" ]; then
+    source venv/Scripts/activate
+else
+    source venv/bin/activate
+fi
+
 print_status "Installation des dépendances Python..."
 pip install --upgrade pip setuptools wheel > /dev/null 2>&1
 pip install -r requirements.txt > /dev/null 2>&1
