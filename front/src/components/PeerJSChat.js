@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
 
 const PeerJSChat = memo(({ roomId, playerName }) => {
@@ -9,12 +10,14 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isReceivingAudio, setIsReceivingAudio] = useState(false);
   
   const peerRef = useRef(null);
   const callRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const remoteAudioRef = useRef(null);
 
   // Debug mode
   const DEBUG_MODE = process.env.REACT_APP_DEBUG_MODE === 'true';
@@ -33,6 +36,61 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       }
     }
   }, [DEBUG_MODE]);
+
+  // Setup audio level monitoring for visual indicator
+  const setupAudioLevelMonitoring = useCallback((stream) => {
+    if (!stream) return;
+
+    debugChat('Setting up audio level monitoring', {
+      streamId: stream.id,
+      audioTracks: stream.getAudioTracks().length
+    });
+
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      
+      source.connect(analyser);
+      
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const checkAudioLevel = () => {
+        if (!isCalling) {
+          setIsReceivingAudio(false);
+          return;
+        }
+        
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average volume
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        
+        // Show indicator if audio level is above threshold
+        const hasAudio = average > 5; // Threshold for detecting audio
+        setIsReceivingAudio(hasAudio);
+        
+        // Continue monitoring
+        requestAnimationFrame(checkAudioLevel);
+      };
+      
+      checkAudioLevel();
+      
+    } catch (err) {
+      debugChat('Error setting up audio level monitoring', {
+        error: err.message,
+        errorName: err.name
+      });
+    }
+  }, [isCalling, debugChat]);
 
   // Initialize PeerJS connection
   useEffect(() => {
@@ -304,6 +362,21 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
                 videoTracks: remoteStream.getVideoTracks().length
               });
               remoteStreamRef.current = remoteStream;
+              
+              // Attach remote stream to audio element
+              if (remoteAudioRef.current) {
+                remoteAudioRef.current.srcObject = remoteStream;
+                remoteAudioRef.current.play().catch(err => {
+                  debugChat('Error playing remote audio stream', {
+                    error: err.message,
+                    errorName: err.name
+                  });
+                });
+                
+                // Set up audio level monitoring for visual indicator
+                setupAudioLevelMonitoring(remoteStream);
+              }
+              
               setIsCalling(true);
             });
 
@@ -386,6 +459,9 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       }
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = null;
       }
     };
   }, [roomId, playerName, DEBUG_MODE]);
@@ -509,6 +585,22 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
             videoTracks: remoteStream.getVideoTracks().length
           });
           remoteStreamRef.current = remoteStream;
+          
+          // Attach remote stream to audio element
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.play().catch(err => {
+              debugChat('Error playing remote audio stream in outgoing call', {
+                error: err.message,
+                errorName: err.name,
+                targetId: remotePeerId
+              });
+            });
+            
+            // Set up audio level monitoring for visual indicator
+            setupAudioLevelMonitoring(remoteStream);
+          }
+          
           setIsCalling(true);
         });
 
@@ -571,6 +663,15 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       callRef.current = null;
     }
     setIsCalling(false);
+    
+    // Clear remote audio
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+      debugChat('Cleared remote audio stream (manual end call)');
+    }
+    
+    // Reset audio reception indicator
+    setIsReceivingAudio(false);
     
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
@@ -635,21 +736,30 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: '16px',
-      padding: '20px',
-      backgroundColor: '#f5f5f5',
-      borderRadius: '8px',
-      minWidth: '300px'
-    }}>
+    <>
+      <style>
+        {`
+          @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+          }
+        `}
+      </style>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px',
+        padding: '20px',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '8px',
+        minWidth: '300px'
+      }}>
       <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>
         📻 Walkie-Talkie Vocal
       </h4>
       
-      {/* Connection Status */}
       <div style={{
         padding: '8px 16px',
         borderRadius: '4px',
@@ -666,14 +776,12 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         )}
       </div>
 
-      {/* Your Peer ID */}
       {peerId && (
         <div style={{ fontSize: '12px', color: '#666' }}>
           Votre ID: <strong>{peerId}</strong>
         </div>
       )}
 
-      {/* Remote Peer ID Input */}
       <input
         type="text"
         placeholder="ID du partenaire à joindre"
@@ -689,7 +797,6 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         disabled={!isConnected}
       />
 
-      {/* Error Message */}
       {error && (
         <div style={{
           color: '#721c24',
@@ -704,7 +811,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         </div>
       )}
 
-      {/* Action Buttons */}
+  
       <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
         <button
           onClick={connectToPeer}
@@ -741,7 +848,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         </button>
       </div>
 
-      {/* Manual Reconnection Button */}
+   
       {!isConnected && !isReconnecting && (
         <button
           onClick={manualReconnect}
@@ -761,7 +868,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         </button>
       )}
 
-      {/* Call Status */}
+    
       {isCalling && (
         <div style={{
           padding: '8px 16px',
@@ -769,12 +876,43 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
           color: '#0c5460',
           borderRadius: '4px',
           fontSize: '14px',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
         }}>
-          🔴 Appel en cours...
+          <span>🔴 Appel en cours</span>
+          {isReceivingAudio && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+              animation: 'pulse 1s infinite'
+            }}>
+              <span style={{
+                fontSize: '12px',
+                color: '#28a745',
+                fontWeight: 'bold'
+              }}>🎵</span>
+              <span style={{
+                fontSize: '10px',
+                color: '#28a745'
+              }}>Audio reçu</span>
+            </div>
+          )}
         </div>
       )}
-    </div>
+
+      {/* Audio element for remote stream - hidden but functional */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        style={{ display: 'none' }}
+      />
+      </div>
+    </>
   );
 });
 
@@ -787,3 +925,4 @@ PeerJSChat.defaultProps = {
 };
 
 export default PeerJSChat;
+
