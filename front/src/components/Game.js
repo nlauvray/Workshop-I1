@@ -22,6 +22,7 @@ const Game = () => {
   const [showDronePhoto, setShowDronePhoto] = useState(false);
   const [flash, setFlash] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [droneImageLoaded, setDroneImageLoaded] = useState(false);
 
   useEffect(() => {
     console.log('Connexion WebSocket à la salle:', roomId);
@@ -190,8 +191,8 @@ const Game = () => {
     <div className="join-page">
       {!isEmbed && (
         <div className="hero fade-in" style={{marginBottom: 12}}>
-          <h1 className="hero-title">🎮 ESCAPE TECH</h1>
-          <p className="hero-subtitle">Salle {roomId} · {isConnected ? 'Connecté' : 'Déconnecté'}</p>
+        <h1 className="hero-title">🎮 ESCAPE TECH</h1>
+        <p className="hero-subtitle">Salle {roomId} · {isConnected ? 'Connecté' : 'Déconnecté'}</p>
         </div>
       )}
 
@@ -230,10 +231,30 @@ const Game = () => {
                 zIndex: 60
               }}
             >
+              {!droneImageLoaded && (
+                <div style={{ color: 'white', textAlign: 'center' }}>
+                  <div>Chargement de l'image du drone...</div>
+                  <div style={{ marginTop: 8, fontSize: 12 }}>Drone détecté !</div>
+                </div>
+              )}
               <img
                 src={`http://localhost:8000/images/photo_dron.png`}
-                alt="Drone"
-                style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8 }}
+                alt="Drone détecté"
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '100%', 
+                  borderRadius: 8,
+                  objectFit: 'contain',
+                  display: droneImageLoaded ? 'block' : 'none'
+                }}
+                onLoad={() => {
+                  console.log('✅ Image du drone chargée avec succès');
+                  setDroneImageLoaded(true);
+                }}
+                onError={(e) => {
+                  console.error('❌ Erreur chargement image drone:', e);
+                  setDroneImageLoaded(false);
+                }}
               />
             </div>
           )}
