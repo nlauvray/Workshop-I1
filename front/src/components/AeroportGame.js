@@ -298,26 +298,28 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
         <div className="popup-obj" style={popupStyle}>
           <h3 style={textStyle}>Walkie-Talkie Vocal</h3>
           <div style={{ marginBottom: '16px' }}>
-            <button 
-              onClick={() => {
-                debugUI('Chat started/stopped', { chatStarted, roomId, playerName });
-                setChatStarted(!chatStarted);
-              }}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: chatStarted ? '#dc3545' : '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              {chatStarted ? '🛑 Arrêter le chat' : '📻 Démarrer le chat'}
-            </button>
+            {!chatStarted && (
+              <button 
+                onClick={() => {
+                  debugUI('Chat started', { chatStarted, roomId, playerName });
+                  setChatStarted(true);
+                }}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                📻 Démarrer le chat
+              </button>
+            )}
           </div>
           
           {chatStarted && (
