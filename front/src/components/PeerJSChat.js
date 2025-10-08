@@ -388,7 +388,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [roomId, playerName, DEBUG_MODE]);
+  }, [roomId, playerName, DEBUG_MODE, debugChat, retryCount, isReconnecting]);
 
   // Connect to another peer
   const connectToPeer = () => {

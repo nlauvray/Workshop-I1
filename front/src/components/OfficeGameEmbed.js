@@ -15,6 +15,7 @@ const ICONS = {
 };
 
 const SAFE_PIN = '4227';
+const audioFinSalle2 = imageUrl('/images/assets/FinSalle2.mp3');
 
 const OfficeGameEmbed = ({ roomId, playerName, onBack, onDesktop }) => {
   const navigate = useNavigate();
@@ -189,7 +190,14 @@ const Salle2Createur = ({ session, onNext, onDesktop }) => {
                 value={safeCode}
                 onChange={setSafeCode}
                 onValidate={() => {
-                  if (safeCode === SAFE_PIN && hintFound && encryptedSeen) setUsbFound(true);
+                  if (safeCode === SAFE_PIN && hintFound && encryptedSeen) {
+                    setUsbFound(true);
+                    try {
+                      const a = new Audio(audioFinSalle2);
+                      a.volume = 1.0;
+                      a.play().catch(() => {});
+                    } catch {}
+                  }
                 }}
                 disabled={usbFound}
                 success={usbFound}

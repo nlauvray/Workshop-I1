@@ -39,6 +39,8 @@ const gpsIcon = imageUrl('/images/assets/radar.png');
 const radioIcon = imageUrl('/images/assets/walkie_talkie.png');
 const mapIcon = imageUrl('/images/assets/map.png');
 const bgAeroport = imageUrl('/images/assets/airport.png');
+const audioDebutSalle1 = imageUrl('/images/assets/DebutSalle1.mp3');
+const audioFinSalle1 = imageUrl('/images/assets/FinSalle1.mp3');
 
 const droneCode = '10388';
 
@@ -148,6 +150,15 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
       debugMode: DEBUG_MODE
     });
   }, [roomId, playerName, session]);
+
+  // Lecture auto au lancement de la salle 1
+  useEffect(() => {
+    try {
+      const a = new Audio(audioDebutSalle1);
+      a.volume = 1.0;
+      a.play().catch(() => {});
+    } catch {}
+  }, []);
 
   // Load PeerJS dynamically
   useEffect(() => {
@@ -272,6 +283,11 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
               if (codeEntered === droneCode) {
                 debugAeroport('GPS code validated successfully', { roomId, playerName });
                 setGpsValidated(true);
+            try {
+              const a = new Audio(audioFinSalle1);
+              a.volume = 1.0;
+              a.play().catch(() => {});
+            } catch {}
               } else {
                 debugAeroport('GPS code validation failed', { 
                   entered: codeEntered, 

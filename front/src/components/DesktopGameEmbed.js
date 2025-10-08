@@ -6,6 +6,7 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
   const [isConnected, setIsConnected] = useState(true); // Simulé comme connecté
   const [folderOpen, setFolderOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [usbOpen, setUsbOpen] = useState(false);
   const notesKey = `notes_${roomId}`;
   const [notesContent, setNotesContent] = useState(() => {
     if (typeof window === 'undefined') return '';
@@ -13,9 +14,205 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
   });
   const [folderPos, setFolderPos] = useState({ x: 140, y: 110 });
   const [notesPos, setNotesPos] = useState({ x: 220, y: 80 });
+  const [usbPos, setUsbPos] = useState({ x: 260, y: 140 });
   const [dragTarget, setDragTarget] = useState(null); // 'folder' | 'notes' | null
   const [dragOffset, setDragOffset] = useState({ dx: 0, dy: 0 });
   const [wallpaper, setWallpaper] = useState(imageUrl('/images/os-x-mountain-lion-3840x2160-24066.jpg'));
+
+  // USB – contenu et sécurité
+  const USB_FOLDER_PIN = 'STOP';
+  const [securedUnlocked, setSecuredUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [selectedUsbItem, setSelectedUsbItem] = useState(null); // { id, type, name }
+  const usbItems = [
+    { id: 'email1', type: 'file', name: 'Email 1' },
+    { id: 'email2', type: 'file', name: 'Email 2' },
+    { id: 'email3_fake', type: 'file', name: 'Email 3' },
+    { id: 'email4_fake', type: 'file', name: 'Email 4' },
+    { id: 'log1', type: 'file', name: 'Log 1' },
+    { id: 'log2', type: 'file', name: 'Log 2' },
+    { id: 'secured', type: 'folder_secured', name: 'Données sécurisées' },
+  ];
+
+  // Audio assets available in secured folder
+  // Vocaux de la salle 3: tous les fichiers qui commencent par "Organisation"
+  // et le dernier message de réussite "FinMission". Les fichiers sont dans images/assets.
+  const audioMap = {
+    secured: [
+      { src: imageUrl('/images/assets/Organisation1.mp3'), title: 'Organisation 1', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/Organisation2.mp3'), title: 'Organisation 2', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/Organisation3.mp3'), title: 'Organisation 3', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/Organisation4.mp3'), title: 'Organisation 4', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/Organisation5.mp3'), title: 'Organisation 5', speaker: 'Organisation' },
+      // Ajout du message final (sera joué manuellement à la réussite si nécessaire)
+      { src: imageUrl('/images/assets/FinMission.mp3'), title: 'Fin de mission', speaker: 'Système' },
+    ],
+  };
+
+  const renderVoices = (key) => {
+    const voices = audioMap[key] || [];
+    if (!voices.length) return null;
+    return (
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>Messages vocaux</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {voices.map((v, idx) => (
+            <div key={idx} style={{ border: '1px solid #ececec', borderRadius: 8, padding: 8, background: '#fff' }}>
+              <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>{v.title} — <span style={{ color: '#6b7280' }}>{v.speaker}</span></div>
+              <audio controls preload="none" style={{ width: '100%' }}>
+                <source src={v.src} type="audio/mpeg" />
+              </audio>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>Placez vos fichiers audio dans /public/audio/ (mp3).</div>
+      </div>
+    );
+  };
+
+  const renderUsbFileContent = (itemId) => {
+    const boxStyle = { background: '#fafafa', border: '1px solid #ececec', borderRadius: 8, padding: 12, color: '#111', minHeight: 180 };
+    const preStyle = { whiteSpace: 'pre-wrap', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: 12, lineHeight: 1.5, margin: 0 };
+    if (itemId === 'email1') {
+      return (
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 1 - Alerte Système</div>
+          <div style={boxStyle}>
+            <pre style={preStyle}>{`DE: security@neuralsky-systems.com
+À: dev-team@neuralsky-systems.com
+DATE: 07/10/2025 - 14:23
+OBJET: [URGENT] Anomalie détectée - Drone NS-7744
+
+Bonjour l'équipe,
+
+Notre système de surveillance a détecté une activité inhabituelle 
+sur le drone NS-7744. Il semble avoir quitté sa zone de patrouille 
+assignée sans autorisation.
+
+Dernier contact: Aéroport CDG - Terminal 2
+L'IA de contrôle PHANTOM ne répond plus aux commandes manuelles.
+
+⚠️ Statut: STOP requis immédiatement
+Drones infectés détectés: 3
+
+Priorité: CRITIQUE
+
+— Département Sécurité`}</pre>
+          </div>
+        </div>
+      );
+    }
+    if (itemId === 'email2') {
+      return (
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 2 - Message du développeur</div>
+          <div style={boxStyle}>
+            <pre style={preStyle}>{`DE: marc.dubois@neuralsky-systems.com
+À: security@neuralsky-systems.com
+DATE: 07/10/2025 - 15:01
+OBJET: RE: Code d'arrêt d'urgence
+
+URGENT - J'ai trouvé le code d'arrêt de PHANTOM !
+
+Le code fait 4 LETTRES et forme un mot en rapport avec la mission.
+Cherchez des MOTS en MAJUSCULES dans les emails et logs.
+
+⚠️ IMPORTANT: Les deux agents doivent entrer le code 
+SIMULTANÉMENT pour validation. C'est une sécurité double.
+
+Serveur central compromis: 192.168.4.107
+
+Bonne chance,
+Marc`}</pre>
+          </div>
+        </div>
+      );
+    }
+    if (itemId === 'email3_fake') {
+      return (
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 3 - FAUX (pour induire en erreur)</div>
+          <div style={boxStyle}>
+            <pre style={preStyle}>{`DE: rh@neuralsky-systems.com
+À: all@neuralsky-systems.com
+DATE: 07/10/2025 - 10:30
+OBJET: Rappel - Formation sécurité obligatoire
+
+Bonjour à tous,
+
+Je vous rappelle que la formation CYBER sécurité est obligatoire 
+pour tous les employés ce vendredi.
+
+Pensez à réserver votre créneau sur l'intranet avant jeudi.
+Le CODE d'accès à la salle de formation est: KILL
+
+Merci,
+Service RH`}</pre>
+          </div>
+        </div>
+      );
+    }
+    if (itemId === 'email4_fake') {
+      return (
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 4 - FAUX (pour induire en erreur)</div>
+          <div style={boxStyle}>
+            <pre style={preStyle}>{`DE: admin@neuralsky-systems.com
+À: tech-team@neuralsky-systems.com
+DATE: 07/10/2025 - 09:15
+OBJET: Maintenance serveurs planifiée
+
+Bonjour,
+
+Une maintenance HALT des serveurs est prévue ce soir à 22h.
+Pensez à sauvegarder vos données.
+
+Durée estimée: 2 heures
+Mot de passe temporaire maintenance: FAIL
+
+Cordialement,
+IT Admin`}</pre>
+          </div>
+        </div>
+      );
+    }
+    if (itemId === 'log1') {
+      return (
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Log 1 - Activité du drone</div>
+          <div style={boxStyle}>
+            <pre style={preStyle}>{`[2025-10-07 12:45:33] INFO - Système PHANTOM opérationnel
+[2025-10-07 13:12:08] INFO - Drones en vol: 247 unités
+[2025-10-07 14:23:47] ERROR - Drone NS-7744: Connection non autorisée
+                              Action requise: STOP propagation
+[2025-10-07 14:24:12] CRITICAL - Tentative de propagation détectée
+[2025-10-07 14:25:01] INFO - Alerte envoyée au département sécurité`}</pre>
+          </div>
+        </div>
+      );
+    }
+    if (itemId === 'log2') {
+      return (
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Log 2 - Analyse réseau</div>
+          <div style={boxStyle}>
+            <pre style={preStyle}>{`[2025-10-07 15:01:45] CRITICAL - PHANTOM accède au serveur central
+                                 IP: 192.168.4.107
+[2025-10-07 15:02:19] ERROR - Propagation en cours sur 3 drones
+[2025-10-07 15:03:42] CRITICAL - 89 drones ciblés pour infection
+[2025-10-07 15:04:28] ERROR - Code d'arrêt d'urgence requis: STOP
+[2025-10-07 15:05:01] CRITICAL - Analyse PHANTOM: 73% complétée`}</pre>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>{selectedUsbItem?.name || 'Fichier'}</div>
+        <div style={boxStyle}>Contenu du fichier. Vous pourrez remplacer ce texte par vos données.</div>
+      </div>
+    );
+  };
 
   // Dock icons (no labels). Folder icon appears only when the folder window is open
   const DOCK_BASE_ICONS = [
@@ -33,7 +230,7 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
 
   const startDrag = (target, e) => {
     e.preventDefault();
-    const pos = target === 'folder' ? folderPos : notesPos;
+    const pos = target === 'folder' ? folderPos : (target === 'notes' ? notesPos : usbPos);
     setDragTarget(target);
     setDragOffset({ dx: e.clientX - pos.x, dy: e.clientY - pos.y });
   };
@@ -42,7 +239,9 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
     if (!dragTarget) return;
     const onMove = (e) => {
       const newPos = { x: e.clientX - dragOffset.dx, y: e.clientY - dragOffset.dy };
-      if (dragTarget === 'folder') setFolderPos(newPos); else setNotesPos(newPos);
+      if (dragTarget === 'folder') setFolderPos(newPos);
+      else if (dragTarget === 'notes') setNotesPos(newPos);
+      else if (dragTarget === 'usb') setUsbPos(newPos);
     };
     const onUp = () => setDragTarget(null);
     window.addEventListener('mousemove', onMove);
@@ -58,7 +257,8 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
     if (icon.id === 'folder') {
       setFolderOpen(true);
     } else if (icon.id === 'usb') {
-      setFolderOpen(true);
+      setUsbOpen(true);
+      setSelectedUsbItem(null);
     } else if (icon.id === 'notes') {
       setNotesOpen(true);
     }
@@ -164,6 +364,100 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
               </div>
               <div style={{ padding: 16, fontSize: 13, color: '#333' }}>
                 Ce dossier est vide pour l'instant. Nous y ajouterons des éléments cliquables ensuite.
+              </div>
+            </div>
+          )}
+
+          {/* USB window */}
+          {usbOpen && (
+            <div style={{
+              position: 'absolute', left: usbPos.x, top: usbPos.y, width: 520, height: 360,
+              background: 'rgba(255,255,255,0.92)', borderRadius: 12,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#111',
+              overflow: 'hidden', border: '1px solid rgba(0,0,0,0.15)'
+            }}>
+              <div style={{
+                height: 34, background: 'linear-gradient(#f4f4f6, #e8e8ee)',
+                display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #d6d6df',
+                cursor: 'move', userSelect: 'none'
+              }} onMouseDown={(e) => startDrag('usb', e)}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={() => setUsbOpen(false)} title="Fermer" style={{ width: 12, height: 12, background: '#ff5f57', borderRadius: 999, border: 'none', padding: 0, cursor: 'pointer' }} />
+                  <span style={{ width: 12, height: 12, background: '#ffbd2e', borderRadius: 999 }} />
+                  <span style={{ width: 12, height: 12, background: '#28c840', borderRadius: 999 }} />
+                </div>
+                <div style={{ marginLeft: 10, fontSize: 12, fontWeight: 700 }}>USB – Drive</div>
+              </div>
+              <div style={{ display: 'flex', height: 'calc(100% - 34px)' }}>
+                <div style={{ flex: 1, padding: 12, borderRight: '1px solid #e6e6ef' }}>
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10
+                  }}>
+                    {usbItems.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedUsbItem(item)}
+                        style={{
+                          background: 'linear-gradient(#ffffff, #f5f6f8)', border: '1px solid #e5e7eb',
+                          borderRadius: 12, padding: 12, textAlign: 'center', cursor: 'pointer',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                        }}
+                        title={item.name}
+                      >
+                        <div style={{ fontSize: 28, marginBottom: 8 }}>
+                          {item.type === 'file' ? '📄' : (securedUnlocked ? '📁' : '🔒')}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#333' }}>{item.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ width: 260, padding: 12, height: '100%', overflowY: 'auto' }}>
+                  {!selectedUsbItem && (
+                    <div style={{ color: '#6b7280', fontSize: 13 }}>Ouvrir les notes pour écrire les informations importantes.</div>
+                  )}
+                  {selectedUsbItem && selectedUsbItem.type === 'file' && (
+                    renderUsbFileContent(selectedUsbItem.id)
+                  )}
+                  {selectedUsbItem && selectedUsbItem.type === 'folder_secured' && !securedUnlocked && (
+                    <div>
+                      <div style={{ fontWeight: 700, marginBottom: 6 }}>Dossier protégé</div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Entrez le code pour déverrouiller.</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input
+                          value={pinInput}
+                          onChange={(e) => setPinInput(e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0,4))}
+                          placeholder="Mot (4 lettres)"
+                          style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', outline: 'none' }}
+                        />
+                        <button
+                          onClick={() => { if (pinInput === USB_FOLDER_PIN) setSecuredUnlocked(true); }}
+                          disabled={pinInput.length !== 4}
+                          style={{
+                            padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f3f4f6', cursor: pinInput.length === 4 ? 'pointer' : 'not-allowed'
+                          }}
+                        >
+                          Ouvrir
+                        </button>
+                      </div>
+                      <div style={{ fontSize: 12, color: securedUnlocked ? 'green' : '#9ca3af', marginTop: 8 }}>
+                        {securedUnlocked ? 'Déverrouillé' : 'Verrouillé'}
+                      </div>
+                    </div>
+                  )}
+                  {selectedUsbItem && selectedUsbItem.type === 'folder_secured' && securedUnlocked && (
+                    <div>
+                      <div style={{ fontWeight: 700, marginBottom: 8 }}>Données sécurisées</div>
+                      <div style={{
+                        background: '#fafafa', border: '1px solid #ececec', borderRadius: 8,
+                        padding: 12, color: '#111', minHeight: 180
+                      }}>
+                        Contenu du dossier sécurisé. Remplacez par vos pages/données.
+                        {renderVoices('secured')}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
