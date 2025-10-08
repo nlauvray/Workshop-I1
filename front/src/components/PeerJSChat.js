@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
 
 const PeerJSChat = memo(({ roomId, playerName }) => {
@@ -9,12 +10,15 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isReceivingAudio, setIsReceivingAudio] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
   
   const peerRef = useRef(null);
   const callRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const remoteAudioRef = useRef(null);
 
   // Debug mode
   const DEBUG_MODE = process.env.REACT_APP_DEBUG_MODE === 'true';
@@ -33,6 +37,61 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       }
     }
   }, [DEBUG_MODE]);
+
+  // Setup audio level monitoring for visual indicator
+  const setupAudioLevelMonitoring = useCallback((stream) => {
+    if (!stream) return;
+
+    debugChat('Setting up audio level monitoring', {
+      streamId: stream.id,
+      audioTracks: stream.getAudioTracks().length
+    });
+
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      
+      source.connect(analyser);
+      
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const checkAudioLevel = () => {
+        if (!isCalling) {
+          setIsReceivingAudio(false);
+          return;
+        }
+        
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average volume
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        
+        // Show indicator if audio level is above threshold
+        const hasAudio = average > 5; // Threshold for detecting audio
+        setIsReceivingAudio(hasAudio);
+        
+        // Continue monitoring
+        requestAnimationFrame(checkAudioLevel);
+      };
+      
+      checkAudioLevel();
+      
+    } catch (err) {
+      debugChat('Error setting up audio level monitoring', {
+        error: err.message,
+        errorName: err.name
+      });
+    }
+  }, [isCalling, debugChat]);
 
   // Initialize PeerJS connection
   useEffect(() => {
@@ -276,75 +335,9 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
           callType: call.type,
           metadata: call.metadata
         });
-        callRef.current = call;
         
-        // Get user media
-        debugChat('Requesting microphone access for incoming call', {
-          from: call.peer,
-          constraints: { video: false, audio: true }
-        });
-        
-        navigator.mediaDevices.getUserMedia({ video: false, audio: true })
-          .then((stream) => {
-            debugChat('Microphone access granted for incoming call', {
-              from: call.peer,
-              streamId: stream.id,
-              audioTracks: stream.getAudioTracks().length,
-              videoTracks: stream.getVideoTracks().length
-            });
-            
-            localStreamRef.current = stream;
-            call.answer(stream);
-            
-            call.on('stream', (remoteStream) => {
-              debugChat('Remote audio stream received', {
-                from: call.peer,
-                streamId: remoteStream.id,
-                audioTracks: remoteStream.getAudioTracks().length,
-                videoTracks: remoteStream.getVideoTracks().length
-              });
-              remoteStreamRef.current = remoteStream;
-              setIsCalling(true);
-            });
-
-            call.on('close', () => {
-              debugChat('Voice call ended', {
-                from: call.peer,
-                callId: call.id,
-                reason: 'call_ended'
-              });
-              setIsCalling(false);
-              if (localStreamRef.current) {
-                localStreamRef.current.getTracks().forEach(track => {
-                  debugChat('Stopping local audio track', {
-                    trackId: track.id,
-                    trackKind: track.kind,
-                    trackLabel: track.label
-                  });
-                  track.stop();
-                });
-                localStreamRef.current = null;
-              }
-            });
-
-            call.on('error', (err) => {
-              debugChat('Call error occurred', {
-                from: call.peer,
-                callId: call.id,
-                error: err.message,
-                errorType: err.type
-              });
-            });
-          })
-          .catch((err) => {
-            debugChat('Microphone access denied for incoming call', {
-              from: call.peer,
-              error: err.message,
-              errorName: err.name,
-              constraints: { video: false, audio: true }
-            });
-            setError('Erreur d\'accès au microphone');
-          });
+        // Store the incoming call instead of automatically answering
+        setIncomingCall(call);
       });
 
       peer.on('error', (err) => {
@@ -386,6 +379,9 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       }
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = null;
       }
     };
   }, [roomId, playerName, DEBUG_MODE, debugChat, retryCount, isReconnecting]);
@@ -509,6 +505,22 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
             videoTracks: remoteStream.getVideoTracks().length
           });
           remoteStreamRef.current = remoteStream;
+          
+          // Attach remote stream to audio element
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.play().catch(err => {
+              debugChat('Error playing remote audio stream in outgoing call', {
+                error: err.message,
+                errorName: err.name,
+                targetId: remotePeerId
+              });
+            });
+            
+            // Set up audio level monitoring for visual indicator
+            setupAudioLevelMonitoring(remoteStream);
+          }
+          
           setIsCalling(true);
         });
 
@@ -553,6 +565,117 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       });
   };
 
+  // Accept incoming call
+  const acceptCall = () => {
+    if (!incomingCall) return;
+    
+    debugChat('Accepting incoming call', {
+      from: incomingCall.peer,
+      callId: incomingCall.id
+    });
+    
+    // Get user media
+    debugChat('Requesting microphone access for incoming call', {
+      from: incomingCall.peer,
+      constraints: { video: false, audio: true }
+    });
+    
+    navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+      .then((stream) => {
+        debugChat('Microphone access granted for incoming call', {
+          from: incomingCall.peer,
+          streamId: stream.id,
+          audioTracks: stream.getAudioTracks().length,
+          videoTracks: stream.getVideoTracks().length
+        });
+        
+        localStreamRef.current = stream;
+        callRef.current = incomingCall;
+        incomingCall.answer(stream);
+        
+        incomingCall.on('stream', (remoteStream) => {
+          debugChat('Remote audio stream received', {
+            from: incomingCall.peer,
+            streamId: remoteStream.id,
+            audioTracks: remoteStream.getAudioTracks().length,
+            videoTracks: remoteStream.getVideoTracks().length
+          });
+          remoteStreamRef.current = remoteStream;
+          
+          // Attach remote stream to audio element
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.play().catch(err => {
+              debugChat('Error playing remote audio stream', {
+                error: err.message,
+                errorName: err.name
+              });
+            });
+            
+            // Set up audio level monitoring for visual indicator
+            setupAudioLevelMonitoring(remoteStream);
+          }
+          
+          // Set the remote peer ID for the person who accepted the call
+          setRemotePeerId(incomingCall.peer);
+          setIsCalling(true);
+          setIncomingCall(null);
+        });
+
+        incomingCall.on('close', () => {
+          debugChat('Voice call ended', {
+            from: incomingCall.peer,
+            callId: incomingCall.id,
+            reason: 'call_ended'
+          });
+          setIsCalling(false);
+          if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => {
+              debugChat('Stopping local audio track', {
+                trackId: track.id,
+                trackKind: track.kind,
+                trackLabel: track.label
+              });
+              track.stop();
+            });
+            localStreamRef.current = null;
+          }
+        });
+
+        incomingCall.on('error', (err) => {
+          debugChat('Call error occurred', {
+            from: incomingCall.peer,
+            callId: incomingCall.id,
+            error: err.message,
+            errorType: err.type
+          });
+        });
+      })
+      .catch((err) => {
+        debugChat('Microphone access denied for incoming call', {
+          from: incomingCall.peer,
+          error: err.message,
+          errorName: err.name,
+          constraints: { video: false, audio: true }
+        });
+        setError('Erreur d\'accès au microphone');
+        setIncomingCall(null);
+      });
+  };
+
+  // Reject incoming call
+  const rejectCall = () => {
+    if (!incomingCall) return;
+    
+    debugChat('Rejecting incoming call', {
+      from: incomingCall.peer,
+      callId: incomingCall.id
+    });
+    
+    incomingCall.close();
+    setIncomingCall(null);
+  };
+
   // End call
   const endCall = () => {
     debugChat('Ending voice call manually', {
@@ -571,6 +694,15 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       callRef.current = null;
     }
     setIsCalling(false);
+    
+    // Clear remote audio
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+      debugChat('Cleared remote audio stream (manual end call)');
+    }
+    
+    // Reset audio reception indicator
+    setIsReceivingAudio(false);
     
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
@@ -635,21 +767,28 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: '16px',
-      padding: '20px',
-      backgroundColor: '#f5f5f5',
-      borderRadius: '8px',
-      minWidth: '300px'
-    }}>
-      <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>
-        📻 Walkie-Talkie Vocal
-      </h4>
+    <>
+      <style>
+        {`
+          @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+          }
+        `}
+      </style>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px',
+        padding: '20px',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '8px',
+        minWidth: '300px'
+      }}>
+     
       
-      {/* Connection Status */}
       <div style={{
         padding: '8px 16px',
         borderRadius: '4px',
@@ -666,14 +805,12 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         )}
       </div>
 
-      {/* Your Peer ID */}
       {peerId && (
         <div style={{ fontSize: '12px', color: '#666' }}>
           Votre ID: <strong>{peerId}</strong>
         </div>
       )}
 
-      {/* Remote Peer ID Input */}
       <input
         type="text"
         placeholder="ID du partenaire à joindre"
@@ -689,7 +826,6 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         disabled={!isConnected}
       />
 
-      {/* Error Message */}
       {error && (
         <div style={{
           color: '#721c24',
@@ -704,44 +840,83 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-        <button
-          onClick={connectToPeer}
-          disabled={!isConnected || !remotePeerId.trim()}
-          style={{
-            flex: 1,
-            padding: '10px',
-            backgroundColor: isConnected && remotePeerId.trim() ? '#007bff' : '#6c757d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: isConnected && remotePeerId.trim() ? 'pointer' : 'not-allowed',
-            fontSize: '14px'
-          }}
-        >
-          Se connecter
-        </button>
-        
-        <button
-          onClick={isCalling ? endCall : startCall}
-          disabled={!isConnected || !remotePeerId.trim()}
-          style={{
-            flex: 1,
-            padding: '10px',
-            backgroundColor: isCalling ? '#dc3545' : (isConnected && remotePeerId.trim() ? '#28a745' : '#6c757d'),
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: isConnected && remotePeerId.trim() ? 'pointer' : 'not-allowed',
-            fontSize: '14px'
-          }}
-        >
-          {isCalling ? '📞 Raccrocher' : '📞 Appeler'}
-        </button>
-      </div>
+  
+      {/* Incoming call notification */}
+      {incomingCall && (
+        <div style={{
+          padding: '16px',
+          backgroundColor: '#fff3cd',
+          border: '2px solid #ffc107',
+          borderRadius: '8px',
+          textAlign: 'center',
+          marginBottom: '16px'
+        }}>
+          <div style={{ 
+            fontSize: '16px', 
+            fontWeight: 'bold', 
+            color: '#856404',
+            marginBottom: '8px'
+          }}>
+            📞 Appel entrant de {incomingCall.peer}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            <button
+              onClick={acceptCall}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              ✅ Accepter
+            </button>
+            <button
+              onClick={rejectCall}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              ❌ Refuser
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Manual Reconnection Button */}
+      {/* Call controls - only show when not receiving an incoming call */}
+      {!incomingCall && (
+        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+          <button
+            onClick={isCalling ? endCall : startCall}
+            disabled={isCalling ? false : (!isConnected || !remotePeerId.trim())}
+            style={{
+              width: '100%',
+              padding: '10px',
+              backgroundColor: isCalling ? '#dc3545' : (isConnected && remotePeerId.trim() ? '#28a745' : '#6c757d'),
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: (isCalling || (isConnected && remotePeerId.trim())) ? 'pointer' : 'not-allowed',
+              fontSize: '14px'
+            }}
+          >
+            {isCalling ? '📞 Raccrocher' : '📞 Appeler'}
+          </button>
+        </div>
+      )}
+
+   
       {!isConnected && !isReconnecting && (
         <button
           onClick={manualReconnect}
@@ -761,7 +936,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         </button>
       )}
 
-      {/* Call Status */}
+    
       {isCalling && (
         <div style={{
           padding: '8px 16px',
@@ -769,12 +944,43 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
           color: '#0c5460',
           borderRadius: '4px',
           fontSize: '14px',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
         }}>
-          🔴 Appel en cours...
+          <span>🔴 Appel en cours</span>
+          {isReceivingAudio && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+              animation: 'pulse 1s infinite'
+            }}>
+              <span style={{
+                fontSize: '12px',
+                color: '#28a745',
+                fontWeight: 'bold'
+              }}>🎵</span>
+              <span style={{
+                fontSize: '10px',
+                color: '#28a745'
+              }}>Audio reçu</span>
+            </div>
+          )}
         </div>
       )}
-    </div>
+
+      {/* Audio element for remote stream - hidden but functional */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        style={{ display: 'none' }}
+      />
+      </div>
+    </>
   );
 });
 
@@ -787,3 +993,4 @@ PeerJSChat.defaultProps = {
 };
 
 export default PeerJSChat;
+
