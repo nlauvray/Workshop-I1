@@ -4,6 +4,8 @@ import { useParams } from 'react-router-dom';
 import GameEmbed from './GameEmbed';
 import OfficeGameEmbed from './OfficeGameEmbed';
 import DesktopGameEmbed from './DesktopGameEmbed';
+import PeerJSChat from './PeerJSChat';
+
 
 // Debug utilities - only initialize if debug mode is enabled
 const DEBUG_MODE = process.env.REACT_APP_DEBUG_MODE === 'true';
@@ -135,6 +137,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
   const [droneFound, setDroneFound] = useState(false); // État persistant du drone trouvé
   const [showOfficeGame, setShowOfficeGame] = useState(false); // État pour afficher officeGame
   const [showDesktopGame, setShowDesktopGame] = useState(false); // État pour afficher DesktopGame
+  const [chatStarted, setChatStarted] = useState(false); // État pour démarrer le chat vocal
 
   // Debug: Log component initialization
   useEffect(() => {
@@ -145,6 +148,73 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
       debugMode: DEBUG_MODE
     });
   }, [roomId, playerName, session]);
+
+  // Load PeerJS dynamically
+  useEffect(() => {
+    const loadPeerJS = async () => {
+      if (window.Peer) {
+        debugAeroport('PeerJS already loaded');
+        return;
+      }
+
+      try {
+        // Load PeerJS from CDN
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';
+        script.async = true;
+        
+        await new Promise((resolve, reject) => {
+          script.onload = () => {
+            debugAeroport('PeerJS loaded successfully');
+            resolve();
+          };
+          script.onerror = () => {
+            debugAeroport('Failed to load PeerJS');
+            reject(new Error('Failed to load PeerJS'));
+          };
+          document.head.appendChild(script);
+        });
+      } catch (error) {
+        debugAeroport('Error loading PeerJS', error);
+      }
+    };
+
+    loadPeerJS();
+  }, []);
+
+  // Add CSS animations
+  useEffect(() => {
+    const styleId = 'aeroport-game-animations';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      @keyframes popupSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-20px) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
 
   const openCameraGame = () => {
     debugAeroport('Opening camera game', { roomId, playerName });
@@ -226,15 +296,62 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
     if (popup === 'radio') {
       return (
         <div className="popup-obj" style={popupStyle}>
-          <h3 style={textStyle}>Radio</h3>
-          <p style={textStyle}>Permet de communiquer avec l'autre joueur (chat vocal à venir).</p>
+          <h3 style={textStyle}>Walkie-Talkie Vocal</h3>
+          <div style={{ marginBottom: '16px' }}>
+            <button 
+              onClick={() => {
+                debugUI('Chat started/stopped', { chatStarted, roomId, playerName });
+                setChatStarted(!chatStarted);
+              }}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: chatStarted ? '#dc3545' : '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              {chatStarted ? '🛑 Arrêter le chat' : '📻 Démarrer le chat'}
+            </button>
+          </div>
+          
+          {chatStarted && (
+            <div style={{ 
+              width: '100%', 
+              marginBottom: '16px',
+              animation: 'fadeIn 0.3s ease-in'
+            }}>
+              <PeerJSChat roomId={roomId} playerName={playerName} />
+            </div>
+          )}
+          
+          {!chatStarted && (
+            <div style={{ 
+              padding: '20px', 
+              backgroundColor: '#f8f9fa', 
+              borderRadius: '8px',
+              textAlign: 'center',
+              color: '#6c757d',
+              fontSize: '14px'
+            }}>
+              Cliquez sur "Démarrer le chat" pour activer le walkie-talkie vocal
+            </div>
+          )}
+          
           <button onClick={() => {
             debugUI('Radio popup closed');
             setPopup(null);
+            setChatStarted(false); // Arrêter le chat en fermant la popup
           }}>Fermer</button>
         </div>
       );
     }
+   
     if (popup === 'carte') {
       const marker = coords ? coords.split(',').map(Number) : null;
       return (
@@ -453,6 +570,7 @@ const popupStyle = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
+  animation: 'popupSlideIn 0.3s ease-out',
 };
 
 export default AeroportGame;
