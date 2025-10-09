@@ -80,7 +80,7 @@ const Lobby = () => {
   return (
     <div className="join-page">
       <div className="hero fade-in">
-        <h1 className="hero-title">🎮 ESCAPE TECH - Mission IA Dysfonctionnelle</h1>
+        <h1 className="hero-title">LOST SIGNAL - Mission IA Dysfonctionnelle</h1>
         <p className="hero-subtitle">Coopération obligatoire - 2 joueurs</p>
       </div>
 

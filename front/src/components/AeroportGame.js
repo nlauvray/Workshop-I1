@@ -729,11 +729,10 @@ const AeroportGameContent = ({ session = { mode: 'create', code: '', pseudo: 'Jo
           background: 'transparent',
         }}
       >
-        <h2>🎮 ESCAPE TECH - Mission IA Dysfonctionnelle</h2>
         <p>
           <strong>Salle 1 : Aéroport</strong> | Session : {session.mode === 'create' ? 'Créateur' : 'Participant'} | Code : {roomId} | Pseudo : {playerName}
         </p>
-        <p style={{ color: '#888', fontSize: '14px', marginTop: '8px' }}>
+        <p style={{ fontSize: '14px', marginTop: '8px' }}>
           Coopération obligatoire - 2 joueurs requis pour cette mission
         </p>
         

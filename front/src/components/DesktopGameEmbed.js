@@ -48,6 +48,8 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
     { currentLetter: 'A', isSpinning: true, targetLetter: 'P' }
   ]);
   const [slotMachineCompleted, setSlotMachineCompleted] = useState(false);
+  const [showBSOD, setShowBSOD] = useState(false);
+  const [showGameOver, setShowGameOver] = useState(false);
 
   const usbItems = [
     { id: 'email1', type: 'file', name: 'Email 1' },
@@ -168,8 +170,18 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
     const timer = setTimeout(() => {
       setAlertTime(prev => {
         const newTime = prev - 1;
-        if (newTime <= 0 && alarmAudio) {
-          alarmAudio.pause();
+        if (newTime <= 0) {
+          if (alarmAudio) {
+            alarmAudio.pause();
+            alarmAudio.currentTime = 0;
+          }
+          setSlotMachineOpen(false);
+          setShowBSOD(true);
+          
+          // Afficher GAME OVER après 3 secondes
+          setTimeout(() => {
+            setShowGameOver(true);
+          }, 3000);
         }
         return newTime;
       });
@@ -465,14 +477,13 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   return (
     <div className="join-page">
       <div className="hero fade-in" style={{marginBottom: 12}}>
-        <h1 className="hero-title">🖥️ Desktop</h1>
-        <p className="hero-subtitle">Salle {roomId} · {isConnected ? 'Connecté' : 'Déconnecté'}</p>
+        <h1 className="hero-title">Salle 3 : Reseau Phantom</h1>
+        <p className="hero-subtitle">Salle {roomId} · {playerName} · {isConnected ? 'Connecté' : 'Déconnecté'}</p>
       </div>
 
       <div className="panel fade-in" style={{width: '100%', maxWidth: 920}}>
         <div style={{display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center'}}>
-          <div className="hint-text">{playerName}</div>
-          <button onClick={onBack} className="btn btn-secondary">← Retour au bureau</button>
+          <button onClick={onBack} className="btn btn-secondary">Retour au bureau</button>
         </div>
 
         <div className="mac-desktop" style={{
@@ -487,7 +498,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
           border: '1px solid rgba(255,255,255,0.2)'
         }}>
           {/* Alert overlay */}
-          {alertActive && (
+          {alertActive && !showBSOD && (
             <div
               style={{
                 position: 'absolute',
@@ -512,6 +523,55 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
               <div style={{ marginTop: 8, fontSize: 22 }}>
                 Temps restant : {alertTime}s
               </div>
+            </div>
+          )}
+
+          {/* BSOD Screen - dans l'écran de l'ordinateur */}
+          {showBSOD && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 10000,
+                background: '#0000AA',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <img
+                src={imageUrl('/images/assets/Windows_9X_BSOD.png')}
+                alt="Blue Screen of Death"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+              />
+              
+              {/* GAME OVER overlay */}
+              {showGameOver && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    color: '#ff0000',
+                    fontSize: '48px',
+                    fontWeight: 'bold',
+                    textShadow: '4px 4px 8px #000000, 0 0 20px #ff0000',
+                    zIndex: 10001,
+                    textAlign: 'center',
+                    animation: 'pulse 1s infinite'
+                  }}
+                >
+                  GAME OVER
+                </div>
+              )}
             </div>
           )}
           {/* Top bar */}
@@ -897,7 +957,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
           )}
 
           {/* Machine à sous pour annuler l'alarme - Popup d'urgence non-fermable */}
-          {slotMachineOpen && (
+          {slotMachineOpen && !showBSOD && (
             <div style={{
               position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', 
               width: 500, height: 400, zIndex: 10000,
