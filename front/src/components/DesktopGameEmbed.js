@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { imageUrl } from '../config';
 
-// Composant DesktopGameEmbed qui intègre le vrai DesktopGame
 function DesktopGameEmbed({ roomId, playerName, onBack }) {
-  const [isConnected, setIsConnected] = useState(true); // Simulé comme connecté
+  const [isConnected, setIsConnected] = useState(true);
   const [folderOpen, setFolderOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [usbOpen, setUsbOpen] = useState(false);
@@ -15,7 +14,7 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
   const [folderPos, setFolderPos] = useState({ x: 140, y: 110 });
   const [notesPos, setNotesPos] = useState({ x: 220, y: 80 });
   const [usbPos, setUsbPos] = useState({ x: 260, y: 140 });
-  const [dragTarget, setDragTarget] = useState(null); // 'folder' | 'notes' | null
+  const [dragTarget, setDragTarget] = useState(null); 
   const [dragOffset, setDragOffset] = useState({ dx: 0, dy: 0 });
   const [wallpaper, setWallpaper] = useState(imageUrl('/images/os-x-mountain-lion-3840x2160-24066.jpg'));
 
@@ -23,7 +22,7 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
   const USB_FOLDER_PIN = 'STOP';
   const [securedUnlocked, setSecuredUnlocked] = useState(false);
   const [pinInput, setPinInput] = useState('');
-  const [selectedUsbItem, setSelectedUsbItem] = useState(null); // { id, type, name }
+  const [selectedUsbItem, setSelectedUsbItem] = useState(null); 
   const usbItems = [
     { id: 'email1', type: 'file', name: 'Email 1' },
     { id: 'email2', type: 'file', name: 'Email 2' },
@@ -34,18 +33,17 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
     { id: 'secured', type: 'folder_secured', name: 'Données sécurisées' },
   ];
 
-  // Audio assets available in secured folder
-  // Vocaux de la salle 3: tous les fichiers qui commencent par "Organisation"
-  // et le dernier message de réussite "FinMission". Les fichiers sont dans images/assets.
-  const audioMap = {
+  const audioVoc = {
     secured: [
-      { src: imageUrl('/images/assets/Organisation1.mp3'), title: 'Organisation 1', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/Organisation2.mp3'), title: 'Organisation 2', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/Organisation3.mp3'), title: 'Organisation 3', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/Organisation4.mp3'), title: 'Organisation 4', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/Organisation5.mp3'), title: 'Organisation 5', speaker: 'Organisation' },
-      // Ajout du message final (sera joué manuellement à la réussite si nécessaire)
-      { src: imageUrl('/images/assets/FinMission.mp3'), title: 'Fin de mission', speaker: 'Système' },
+      { src: '/assets/Organisation1.mp3', title: 'Organisation 1', speaker: 'Organisation' },
+      { src: '/assets/Organisation2.mp3', title: 'Organisation 2', speaker: 'Organisation' },
+      { src: '/assets/Organisation3.mp3', title: 'Organisation 3', speaker: 'Organisation' },
+      { src: '/assets/Organisation4.mp3', title: 'Organisation 4', speaker: 'Organisation' },
+    ],
+  };
+   const audioMap = {
+    secured: [
+      { src: '/assets/FinMission.mp3', title: 'Fin de mission', speaker: 'Système' },
     ],
   };
 
@@ -79,25 +77,25 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 1 - Alerte Système</div>
           <div style={boxStyle}>
             <pre style={preStyle}>{`DE: security@neuralsky-systems.com
-À: dev-team@neuralsky-systems.com
-DATE: 07/10/2025 - 14:23
-OBJET: [URGENT] Anomalie détectée - Drone NS-7744
+              À: dev-team@neuralsky-systems.com
+              DATE: 07/10/2025 - 14:23
+              OBJET: [URGENT] Anomalie détectée - Drone NS-7744
 
-Bonjour l'équipe,
+              Bonjour l'équipe,
 
-Notre système de surveillance a détecté une activité inhabituelle 
-sur le drone NS-7744. Il semble avoir quitté sa zone de patrouille 
-assignée sans autorisation.
+              Notre système de surveillance a détecté une activité inhabituelle 
+              sur le drone NS-7744. Il semble avoir quitté sa zone de patrouille 
+              assignée sans autorisation.
 
-Dernier contact: Aéroport CDG - Terminal 2
-L'IA de contrôle PHANTOM ne répond plus aux commandes manuelles.
+              Dernier contact: Aéroport CDG - Terminal 2
+              L'IA de contrôle PHANTOM ne répond plus aux commandes manuelles.
 
-⚠️ Statut: STOP requis immédiatement
-Drones infectés détectés: 3
+              ⚠️ Statut: STOP requis immédiatement
+              Drones infectés détectés: 3
 
-Priorité: CRITIQUE
+              Priorité: CRITIQUE
 
-— Département Sécurité`}</pre>
+              — Département Sécurité`}</pre>
           </div>
         </div>
       );
@@ -108,22 +106,22 @@ Priorité: CRITIQUE
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 2 - Message du développeur</div>
           <div style={boxStyle}>
             <pre style={preStyle}>{`DE: marc.dubois@neuralsky-systems.com
-À: security@neuralsky-systems.com
-DATE: 07/10/2025 - 15:01
-OBJET: RE: Code d'arrêt d'urgence
+              À: security@neuralsky-systems.com
+              DATE: 07/10/2025 - 15:01
+              OBJET: RE: Code d'arrêt d'urgence
 
-URGENT - J'ai trouvé le code d'arrêt de PHANTOM !
+              URGENT - J'ai trouvé le code d'arrêt de PHANTOM !
 
-Le code fait 4 LETTRES et forme un mot en rapport avec la mission.
-Cherchez des MOTS en MAJUSCULES dans les emails et logs.
+              Le code fait 4 LETTRES et forme un mot en rapport avec la mission.
+              Cherchez des MOTS en MAJUSCULES dans les emails et logs.
 
-⚠️ IMPORTANT: Les deux agents doivent entrer le code 
-SIMULTANÉMENT pour validation. C'est une sécurité double.
+              ⚠️ IMPORTANT: Les deux agents doivent entrer le code 
+              SIMULTANÉMENT pour validation. C'est une sécurité double.
 
-Serveur central compromis: 192.168.4.107
+              Serveur central compromis: 192.168.4.107
 
-Bonne chance,
-Marc`}</pre>
+              Bonne chance,
+              Marc`}</pre>
           </div>
         </div>
       );
@@ -134,20 +132,20 @@ Marc`}</pre>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 3 - FAUX (pour induire en erreur)</div>
           <div style={boxStyle}>
             <pre style={preStyle}>{`DE: rh@neuralsky-systems.com
-À: all@neuralsky-systems.com
-DATE: 07/10/2025 - 10:30
-OBJET: Rappel - Formation sécurité obligatoire
+              À: all@neuralsky-systems.com
+              DATE: 07/10/2025 - 10:30
+              OBJET: Rappel - Formation sécurité obligatoire
 
-Bonjour à tous,
+              Bonjour à tous,
 
-Je vous rappelle que la formation CYBER sécurité est obligatoire 
-pour tous les employés ce vendredi.
+              Je vous rappelle que la formation CYBER sécurité est obligatoire 
+              pour tous les employés ce vendredi.
 
-Pensez à réserver votre créneau sur l'intranet avant jeudi.
-Le CODE d'accès à la salle de formation est: KILL
+              Pensez à réserver votre créneau sur l'intranet avant jeudi.
+              Le CODE d'accès à la salle de formation est: KILL
 
-Merci,
-Service RH`}</pre>
+              Merci,
+              Service RH`}</pre>
           </div>
         </div>
       );
@@ -158,20 +156,20 @@ Service RH`}</pre>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 4 - FAUX (pour induire en erreur)</div>
           <div style={boxStyle}>
             <pre style={preStyle}>{`DE: admin@neuralsky-systems.com
-À: tech-team@neuralsky-systems.com
-DATE: 07/10/2025 - 09:15
-OBJET: Maintenance serveurs planifiée
+              À: tech-team@neuralsky-systems.com
+              DATE: 07/10/2025 - 09:15
+              OBJET: Maintenance serveurs planifiée
 
-Bonjour,
+              Bonjour,
 
-Une maintenance HALT des serveurs est prévue ce soir à 22h.
-Pensez à sauvegarder vos données.
+              Une maintenance HALT des serveurs est prévue ce soir à 22h.
+              Pensez à sauvegarder vos données.
 
-Durée estimée: 2 heures
-Mot de passe temporaire maintenance: FAIL
+              Durée estimée: 2 heures
+              Mot de passe temporaire maintenance: FAIL
 
-Cordialement,
-IT Admin`}</pre>
+              Cordialement,
+              IT Admin`}</pre>
           </div>
         </div>
       );
@@ -182,11 +180,11 @@ IT Admin`}</pre>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Log 1 - Activité du drone</div>
           <div style={boxStyle}>
             <pre style={preStyle}>{`[2025-10-07 12:45:33] INFO - Système PHANTOM opérationnel
-[2025-10-07 13:12:08] INFO - Drones en vol: 247 unités
-[2025-10-07 14:23:47] ERROR - Drone NS-7744: Connection non autorisée
-                              Action requise: STOP propagation
-[2025-10-07 14:24:12] CRITICAL - Tentative de propagation détectée
-[2025-10-07 14:25:01] INFO - Alerte envoyée au département sécurité`}</pre>
+              [2025-10-07 13:12:08] INFO - Drones en vol: 247 unités
+              [2025-10-07 14:23:47] ERROR - Drone NS-7744: Connection non autorisée
+                                            Action requise: STOP propagation
+              [2025-10-07 14:24:12] CRITICAL - Tentative de propagation détectée
+              [2025-10-07 14:25:01] INFO - Alerte envoyée au département sécurité`}</pre>
           </div>
         </div>
       );
@@ -198,10 +196,10 @@ IT Admin`}</pre>
           <div style={boxStyle}>
             <pre style={preStyle}>{`[2025-10-07 15:01:45] CRITICAL - PHANTOM accède au serveur central
                                  IP: 192.168.4.107
-[2025-10-07 15:02:19] ERROR - Propagation en cours sur 3 drones
-[2025-10-07 15:03:42] CRITICAL - 89 drones ciblés pour infection
-[2025-10-07 15:04:28] ERROR - Code d'arrêt d'urgence requis: STOP
-[2025-10-07 15:05:01] CRITICAL - Analyse PHANTOM: 73% complétée`}</pre>
+            [2025-10-07 15:02:19] ERROR - Propagation en cours sur 3 drones
+            [2025-10-07 15:03:42] CRITICAL - 89 drones ciblés pour infection
+            [2025-10-07 15:04:28] ERROR - Code d'arrêt d'urgence requis: STOP
+            [2025-10-07 15:05:01] CRITICAL - Analyse PHANTOM: 73% complétée`}</pre>
           </div>
         </div>
       );

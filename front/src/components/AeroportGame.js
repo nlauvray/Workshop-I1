@@ -6,11 +6,8 @@ import OfficeGameEmbed from './OfficeGameEmbed';
 import DesktopGameEmbed from './DesktopGameEmbed';
 import PeerJSChat from './PeerJSChat';
 
-
-// Debug utilities - only initialize if debug mode is enabled
 const DEBUG_MODE = process.env.REACT_APP_DEBUG_MODE === 'true';
 
-// Initialize debug functions only if debug mode is enabled
 let debugAeroport, debugUI;
 
 if (DEBUG_MODE) {
@@ -39,12 +36,20 @@ const gpsIcon = imageUrl('/images/assets/radar.png');
 const radioIcon = imageUrl('/images/assets/walkie_talkie.png');
 const mapIcon = imageUrl('/images/assets/map.png');
 const bgAeroport = imageUrl('/images/assets/airport.png');
-const audioDebutSalle1 = imageUrl('/images/assets/DebutSalle1.mp3');
-const audioFinSalle1 = imageUrl('/images/assets/FinSalle1.mp3');
+const audioDebutMission = { 
+  secure: [
+    { src: '/assets/DebutMission.mp3', title: 'Début de mission', speaker: 'Système' },
+  ] 
+};
+const audioFinSalle1 = { 
+  secure: [
+    { src: '/assets/FinSalle1.mp3', title: 'Fin Salle 1', speaker: 'Fin' },
+  ] 
+};
+
 
 const droneCode = '10388';
 
-// Lightweight Leaflet loader and map component (no react-leaflet dependency)
 function LeafletMap({ center, zoom, markerPos, onMapClick }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -154,13 +159,12 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
   // Lecture auto au lancement de la salle 1
   useEffect(() => {
     try {
-      const a = new Audio(audioDebutSalle1);
+      const a = new Audio(audioDebutMission.secure[0].src);
       a.volume = 1.0;
       a.play().catch(() => {});
     } catch {}
   }, []);
 
-  // Load PeerJS dynamically
   useEffect(() => {
     const loadPeerJS = async () => {
       if (window.Peer) {
@@ -284,7 +288,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
                 debugAeroport('GPS code validated successfully', { roomId, playerName });
                 setGpsValidated(true);
             try {
-              const a = new Audio(audioFinSalle1);
+              const a = new Audio(audioFinSalle1.secure[0].src);
               a.volume = 1.0;
               a.play().catch(() => {});
             } catch {}
@@ -372,33 +376,171 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
    
     if (popup === 'carte') {
       const marker = coords ? coords.split(',').map(Number) : null;
+      const currentLat = marker ? marker[0] : null;
+      const currentLng = marker ? marker[1] : null;
+      
       return (
-        <div className="popup-obj" style={{ ...popupStyle, minWidth: '420px' }}>
+        <div className="popup-obj" style={{ ...popupStyle, minWidth: '900px', maxWidth: '95vw' }}>
           <h3 style={textStyle}>Carte interactive</h3>
           <p style={textStyle}>Cliquez sur la carte pour placer un point et lire ses coordonnées.</p>
-          <div style={{ width: 360, height: 300, marginBottom: 16 }}>
-            <LeafletMap
-              center={[48.8566, 2.3522]}
-              zoom={13}
-              markerPos={marker}
-              onMapClick={(lat, lng) => {
-                const newCoords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-                debugAeroport('Map coordinates selected', {
-                  lat: lat.toFixed(5),
-                  lng: lng.toFixed(5),
-                  coords: newCoords,
-                  roomId,
-                  playerName
-                });
-                setCoords(newCoords);
-              }}
-            />
+          
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+            {/* Barre de latitude à gauche */}
+            <div style={{ 
+              width: 60, 
+              height: 500, 
+              background: 'linear-gradient(180deg, #f0f0f0, #e0e0e0)',
+              border: '2px solid #999',
+              borderRadius: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              padding: '8px 4px',
+              fontSize: 11,
+              fontWeight: 'bold',
+              color: '#333',
+              position: 'relative'
+            }}>
+              <div style={{ textAlign: 'center' }}>48.90°N</div>
+              <div style={{ textAlign: 'center' }}>48.85°N</div>
+              <div style={{ textAlign: 'center' }}>48.80°N</div>
+              
+              {/* Indicateur de latitude actuelle */}
+              {currentLat && (
+                <div style={{
+                  position: 'absolute',
+                  right: -8,
+                  top: `${((48.90 - currentLat) / (48.90 - 48.80)) * 100}%`,
+                  width: 16,
+                  height: 16,
+                  background: 'red',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  transform: 'translateY(-50%)'
+                }} />
+              )}
+            </div>
+
+            {/* Carte principale */}
+            <div style={{ position: 'relative' }}>
+              <div style={{ width: 700, height: 500, marginBottom: 16, position: 'relative' }}>
+                <LeafletMap
+                  center={[48.8566, 2.3522]}
+                  zoom={13}
+                  markerPos={marker}
+                  onMapClick={(lat, lng) => {
+                    const newCoords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                    debugAeroport('Map coordinates selected', {
+                      lat: lat.toFixed(5),
+                      lng: lng.toFixed(5),
+                      coords: newCoords,
+                      roomId,
+                      playerName
+                    });
+                    setCoords(newCoords);
+                  }}
+                />
+                
+                {/* Lignes de croisement (crosshair) */}
+                {marker && (
+                  <>
+                    {/* Ligne horizontale */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: 0,
+                      width: '100%',
+                      height: 2,
+                      background: 'rgba(255, 0, 0, 0.6)',
+                      pointerEvents: 'none',
+                      zIndex: 1000,
+                      boxShadow: '0 0 4px rgba(0,0,0,0.5)'
+                    }} />
+                    
+                    {/* Ligne verticale */}
+                    <div style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: 0,
+                      width: 2,
+                      height: '100%',
+                      background: 'rgba(255, 0, 0, 0.6)',
+                      pointerEvents: 'none',
+                      zIndex: 1000,
+                      boxShadow: '0 0 4px rgba(0,0,0,0.5)'
+                    }} />
+                  </>
+                )}
+              </div>
+              
+              {/* Barre de longitude en bas */}
+              <div style={{ 
+                width: 700, 
+                height: 50, 
+                background: 'linear-gradient(90deg, #f0f0f0, #e0e0e0)',
+                border: '2px solid #999',
+                borderRadius: 8,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '4px 8px',
+                fontSize: 11,
+                fontWeight: 'bold',
+                color: '#333',
+                position: 'relative'
+              }}>
+                <div>2.30°E</div>
+                <div>2.35°E</div>
+                <div>2.40°E</div>
+                
+                {/* Indicateur de longitude actuelle */}
+                {currentLng && (
+                  <div style={{
+                    position: 'absolute',
+                    top: -8,
+                    left: `${((currentLng - 2.30) / (2.40 - 2.30)) * 100}%`,
+                    width: 16,
+                    height: 16,
+                    background: 'red',
+                    border: '2px solid white',
+                    borderRadius: '50%',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    transform: 'translateX(-50%)'
+                  }} />
+                )}
+              </div>
+            </div>
           </div>
-          {coords && <span style={{ color: 'green', marginBottom: 8 }}>Coordonnées : <b>{coords}</b></span>}
-          <button onClick={() => {
-            debugUI('Map popup closed');
-            setPopup(null);
-          }} style={{ marginLeft: 8 }}>Fermer</button>
+          
+          {coords && (
+            <div style={{ marginTop: 16, marginBottom: 8, textAlign: 'center' }}>
+              <span style={{ color: 'green', fontSize: 16 }}>Coordonnées : <b>{coords}</b></span>
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            {coords && (
+              <button 
+                onClick={() => {
+                  debugAeroport('Coordinates validated', { coords, roomId, playerName });
+                  alert('Coordonnées validées ! Vous pouvez maintenant passer à la salle suivante.');
+                  setPopup(null);
+                }} 
+                style={{ 
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  padding: '8px 16px',
+                  fontWeight: 'bold'
+                }}
+              >
+                Valider les coordonnées
+              </button>
+            )}
+            <button onClick={() => {
+              debugUI('Map popup closed');
+              setPopup(null);
+            }}>Fermer</button>
+          </div>
         </div>
       );
     }

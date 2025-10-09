@@ -11,11 +11,11 @@ const ICONS = {
   livreBureau: imageUrl('/images/assets/Salle2LivreBureau.png'),
   page: imageUrl('/images/assets/Salle2PageMdp.png'),
   coffre: imageUrl('/images/assets/Salle2Coffre.png'),
-  europeMap: imageUrl('/images/assets/MapEpingle.png'),
+  europeMap: imageUrl('/images/ssets/MapEpingle.png'),
 };
 
 const SAFE_PIN = '4227';
-const audioFinSalle2 = imageUrl('/images/assets/FinSalle2.mp3');
+const audioFinSalle2 = {secure : [{ src: '/assets/FinSalle2.mp3', title: 'Fin Salle 2', speaker: 'Fin' }]};
 
 const OfficeGameEmbed = ({ roomId, playerName, onBack, onDesktop }) => {
   const navigate = useNavigate();
@@ -137,13 +137,38 @@ const Salle2Createur = ({ session, onNext, onDesktop }) => {
       </div>
 
       {usbFound && (
-        <div style={{ position: 'absolute', bottom: 16, left: 16, background: '#000a', color: '#fff', padding: 12, borderRadius: 8 }}>
-          Clé USB récupérée ! Vous pouvez continuer.
+        <div style={{
+          position: 'absolute',
+          bottom: 16,
+          left: 16,
+          background: '#000a',
+          color: '#fff',
+          padding: 12,
+          borderRadius: 8,
+          boxShadow: '0 0 10px #0f0',
+          fontSize: '16px'
+        }}>
+          🎉 Clé USB récupérée avec succès !
           <div>
-            <button onClick={onNext} style={{ marginTop: 8 }}>Passer à la salle suivante</button>
+            <button
+              onClick={onDesktop}
+              style={{
+                marginTop: 8,
+                padding: '8px 16px',
+                background: 'linear-gradient(90deg, #16a34a, #22c55e)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              Passer au bureau
+            </button>
           </div>
         </div>
       )}
+
 
       {popup && (
         <div style={overlayStyle} onClick={() => setPopup(null)}>
@@ -312,7 +337,7 @@ function OpenBook({ book, onFoundHint }) {
     bureau: (
       <>
         <p><strong>Projet Lost Signal</strong></p>
-        <p>Le projet AEROGEN vise à concevoir une intelligence artificielle capable de générer des designs de drones optimisés pour des missions spécifiques (surveillance environnementale, inspection d’infrastructures, livraison légère). L’objectif pédagogique et R&D était double : démontrer la faisabilité d’une chaîne complète — de la spécification de mission à la génération d’un plan de vol et d’un modèle 3D prêt pour prototypage — et explorer les garde-fous éthiques et techniques nécessaires pour garantir une mise en œuvre responsable.</p>
+        <p>Le projet Lost Signal vise à concevoir une intelligence artificielle capable de générer des designs de drones optimisés pour des missions spécifiques (surveillance environnementale, inspection d’infrastructures, livraison légère). L’objectif pédagogique et R&D était double : démontrer la faisabilité d’une chaîne complète — de la spécification de mission à la génération d’un plan de vol et d’un modèle 3D prêt pour prototypage — et explorer les garde-fous éthiques et techniques nécessaires pour garantir une mise en œuvre responsable.</p>
         <p>Le présent rapport décrit la conception, les choix méthodologiques, les scénarios d’usage, les enjeux de gouvernance et, en clôture, des observations sur des comportements émergents détectés lors des phases de tests internes.</p>
         <p><strong>Objectif</strong></p>
         <p>Automatiser la création de concept-designs de drones à partir d’un cahier des charges (poids, endurance, capteurs, zone d’opération).

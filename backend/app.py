@@ -1,3 +1,4 @@
+from curses import echo
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,13 +14,33 @@ import uuid
 import logging
 from datetime import datetime
 
-# Configuration des logs de debug
 DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
-# Initialize logging only if debug mode is enabled
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount(
+    "/images",
+    StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "images")),
+    name="images",
+)
+
+app.mount(
+    "/static/assets",
+    StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "assets")),
+    name="static_assets",
+)
+
+
 if DEBUG_MODE:
-    # Configuration du logging
     logging.basicConfig(
         level=getattr(logging, LOG_LEVEL.upper()),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -30,62 +51,25 @@ if DEBUG_MODE:
     )
     logger = logging.getLogger(__name__)
 
-    # Fonctions de debug
     def debug_log(category, message, data=None):
         timestamp = datetime.now().isoformat()
         log_message = f"[{timestamp}] [BACKEND-{category}] {message}"
-        
         if data:
             logger.info(f"{log_message} | Data: {json.dumps(data, default=str)}")
         else:
             logger.info(log_message)
 
-    def debug_aeroport(message, data=None):
-        debug_log('AEROPORT', message, data)
-
-    def debug_websocket(message, data=None):
-        debug_log('WEBSOCKET', message, data)
-
-    def debug_game_embed(message, data=None):
-        debug_log('GAME-EMBED', message, data)
-
-    def debug_image_processing(message, data=None):
-        debug_log('IMAGE-PROCESSING', message, data)
+    def debug_aeroport(message, data=None): debug_log('AEROPORT', message, data)
+    def debug_websocket(message, data=None): debug_log('WEBSOCKET', message, data)
+    def debug_game_embed(message, data=None): debug_log('GAME-EMBED', message, data)
+    def debug_image_processing(message, data=None): debug_log('IMAGE-PROCESSING', message, data)
 else:
-    # No-op functions when debug is disabled
-    def debug_aeroport(message, data=None):
-        pass
+    def debug_aeroport(message, data=None): pass
+    def debug_websocket(message, data=None): pass
+    def debug_game_embed(message, data=None): pass
+    def debug_image_processing(message, data=None): pass
 
-    def debug_websocket(message, data=None):
-        pass
-
-    def debug_game_embed(message, data=None):
-        pass
-
-    def debug_image_processing(message, data=None):
-        pass
-
-app = FastAPI()
-
-# Configuration CORS pour React
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Servir les fichiers statiques (images) pour afficher la photo du drone
-app.mount(
-    "/images",
-    StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "images")),
-    name="images",
-)
-
-# Gestion des salles de jeu
 game_rooms: Dict[str, Dict] = {}
-# Dictionnaire pour stocker les tâches de suppression différée
 room_deletion_tasks = {}
 
 class GameRoom:
@@ -93,9 +77,9 @@ class GameRoom:
         self.room_id = room_id
         self.players = {}
         self.connections = []
-        self.can_see_drone = {}  # player_id -> bool
-        self.first_assigned = False  # vision assigned for first player
-        self.secret_assigned = False  # vision assigned for both players
+        self.can_see_drone = {} 
+        self.first_assigned = False 
+        self.secret_assigned = False 
         self.player_names: Dict[int, str] = {}
         self.is_private = is_private
         self.solo = solo
@@ -116,7 +100,7 @@ class GameRoom:
             "current_player": 1,
             "game_started": False
         }
-        self.images = self.load_images()
+        self.images = self.load_images()   
     
     def load_images(self):
         """Charge les images de base"""
@@ -163,7 +147,6 @@ class GameRoom:
             "thermal_nodrone_shape": therm_nodrone.shape
         })
 
-        # Préparer des versions 512x512 pour un rendu et des coordonnées cohérents
         target_size = (512, 512)
         base_small = np.asarray(Image.fromarray(base.astype('uint8')).resize(target_size, Image.Resampling.LANCZOS))
         nvg_small = np.asarray(Image.fromarray(nvg.astype('uint8')).resize(target_size, Image.Resampling.LANCZOS))
@@ -177,8 +160,6 @@ class GameRoom:
             "therm_small_shape": therm_small.shape,
             "therm_small_nodrone_shape": therm_small_nodrone.shape
         })
-
-        # Utiliser directement l'image thermique fournie sans drone
 
         return {
             "base": base,
@@ -206,7 +187,6 @@ class GameRoom:
             "solo": getattr(self, 'solo', False)
         })
 
-        # Travailler en 512x512 pour correspondre à l'affichage
         img = self.images["base_small"].copy()
 
         overlay_img = None
