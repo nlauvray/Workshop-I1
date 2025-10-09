@@ -29,6 +29,14 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [alertTime, setAlertTime] = useState(30);
   const [alarmAudio, setAlarmAudio] = useState(null);
   const [completedAudios, setCompletedAudios] = useState(new Set());
+  const [mailOpen, setMailOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [clockOpen, setClockOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [mailPos, setMailPos] = useState({ x: 320, y: 100 });
+  const [calcPos, setCalcPos] = useState({ x: 380, y: 120 });
+  const [clockPos, setClockPos] = useState({ x: 440, y: 140 });
+  const [trashPos, setTrashPos] = useState({ x: 500, y: 160 });
 
   const usbItems = [
     { id: 'email1', type: 'file', name: 'Email 1' },
@@ -101,16 +109,8 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   };
 
   useEffect(() => {
-    if (!alertActive) return;
-    if (alertTime <= 0) return;
-
-    const timer = setTimeout(() => setAlertTime(prev => prev - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [alertActive, alertTime]);
-
-  useEffect(() => {
     if (alertActive) {
-      const alarm = new Audio(imageUrl('/images/assets/DebutMission.mp3'));
+      const alarm = new Audio(imageUrl('/images/assets/danger-situation-sound-effect-15635.mp3'));
       alarm.loop = true;
       alarm.volume = 0.6;
       alarm.play().catch(() => {});
@@ -126,14 +126,18 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   useEffect(() => {
     if (!alertActive || alertTime <= 0) return;
 
-    const timer = setTimeout(() => setAlertTime(prev => prev - 1), 1000);
-
-    if (alertTime === 0 && alarmAudio) {
-      alarmAudio.pause();
-    }
+    const timer = setTimeout(() => {
+      setAlertTime(prev => {
+        const newTime = prev - 1;
+        if (newTime <= 0 && alarmAudio) {
+          alarmAudio.pause();
+        }
+        return newTime;
+      });
+    }, 1000);
 
     return () => clearTimeout(timer);
-  }, [alertActive, alertTime]);
+  }, [alertActive, alertTime, alarmAudio]);
 
   const renderUsbFileContent = (itemId) => {
     const boxStyle = { background: '#fafafa', border: '1px solid #ececec', borderRadius: 8, padding: 12, color: '#111', minHeight: 180 };
@@ -282,10 +286,10 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   // Dock icons (no labels). Folder icon appears only when the folder window is open
   const DOCK_BASE_ICONS = [
     { id: 'notes', label: 'Notes', file: 'Notes-1.png', clickable: true },
-    { id: 'mail', label: 'Mail', file: 'gmail_256x256x32.png', clickable: false },
-    { id: 'calc', label: 'Calculatrice', file: 'calc 2_256x256x32.png', clickable: false },
-    { id: 'clock', label: 'Horloge', file: 'clock 3_256x256x32.png', clickable: false },
-    { id: 'trash', label: 'Corbeille', file: 'user-trash_256x256x32.png', clickable: false },
+    { id: 'mail', label: 'Mail', file: 'gmail_256x256x32.png', clickable: true },
+    { id: 'calc', label: 'Calculatrice', file: 'calc 2_256x256x32.png', clickable: true },
+    { id: 'clock', label: 'Horloge', file: 'clock 3_256x256x32.png', clickable: true },
+    { id: 'trash', label: 'Corbeille', file: 'user-trash_256x256x32.png', clickable: true },
   ];
   const FOLDER_ICON = { id: 'folder', label: 'Dossier', file: 'folder_256x256x32.png', clickable: true };
 
@@ -295,7 +299,17 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
 
   const startDrag = (target, e) => {
     e.preventDefault();
-    const pos = target === 'folder' ? folderPos : (target === 'notes' ? notesPos : usbPos);
+    let pos;
+    switch(target) {
+      case 'folder': pos = folderPos; break;
+      case 'notes': pos = notesPos; break;
+      case 'usb': pos = usbPos; break;
+      case 'mail': pos = mailPos; break;
+      case 'calc': pos = calcPos; break;
+      case 'clock': pos = clockPos; break;
+      case 'trash': pos = trashPos; break;
+      default: pos = { x: 0, y: 0 };
+    }
     setDragTarget(target);
     setDragOffset({ dx: e.clientX - pos.x, dy: e.clientY - pos.y });
   };
@@ -304,9 +318,15 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
     if (!dragTarget) return;
     const onMove = (e) => {
       const newPos = { x: e.clientX - dragOffset.dx, y: e.clientY - dragOffset.dy };
-      if (dragTarget === 'folder') setFolderPos(newPos);
-      else if (dragTarget === 'notes') setNotesPos(newPos);
-      else if (dragTarget === 'usb') setUsbPos(newPos);
+      switch(dragTarget) {
+        case 'folder': setFolderPos(newPos); break;
+        case 'notes': setNotesPos(newPos); break;
+        case 'usb': setUsbPos(newPos); break;
+        case 'mail': setMailPos(newPos); break;
+        case 'calc': setCalcPos(newPos); break;
+        case 'clock': setClockPos(newPos); break;
+        case 'trash': setTrashPos(newPos); break;
+      }
     };
     const onUp = () => setDragTarget(null);
     window.addEventListener('mousemove', onMove);
@@ -315,7 +335,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [dragTarget, dragOffset, folderPos, notesPos]);
+  }, [dragTarget, dragOffset, folderPos, notesPos, usbPos, mailPos, calcPos, clockPos, trashPos]);
 
   const handleIconClick = (icon) => {
     if (!icon.clickable) return;
@@ -326,6 +346,14 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
       setSelectedUsbItem(null);
     } else if (icon.id === 'notes') {
       setNotesOpen(true);
+    } else if (icon.id === 'mail') {
+      setMailOpen(true);
+    } else if (icon.id === 'calc') {
+      setCalcOpen(true);
+    } else if (icon.id === 'clock') {
+      setClockOpen(true);
+    } else if (icon.id === 'trash') {
+      setTrashOpen(true);
     }
   };
 
@@ -587,6 +615,178 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
                     fontSize: 14, background: '#fffdf6'
                   }}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Gmail window */}
+          {mailOpen && (
+            <div style={{
+              position: 'absolute', left: mailPos.x, top: mailPos.y, width: 600, height: 400,
+              background: 'rgba(255,255,255,0.95)', borderRadius: 12,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#111',
+              overflow: 'hidden', border: '1px solid rgba(0,0,0,0.15)'
+            }}>
+              <div style={{
+                height: 34, background: 'linear-gradient(#ea4335, #d33b2c)',
+                display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #c23321',
+                cursor: 'move', userSelect: 'none'
+              }} onMouseDown={(e) => startDrag('mail', e)}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={() => setMailOpen(false)} title="Fermer" style={{ width: 12, height: 12, background: '#ff5f57', borderRadius: 999, border: 'none', padding: 0, cursor: 'pointer' }} />
+                  <span style={{ width: 12, height: 12, background: '#ffbd2e', borderRadius: 999 }} />
+                  <span style={{ width: 12, height: 12, background: '#28c840', borderRadius: 999 }} />
+                </div>
+                <div style={{ marginLeft: 10, fontSize: 12, fontWeight: 700, color: 'white' }}>Gmail</div>
+              </div>
+              <div style={{ padding: 16, height: 'calc(100% - 34px)', overflowY: 'auto' }}>
+                <div style={{ marginBottom: 16 }}>
+                  <h3 style={{ margin: '0 0 12px 0', color: '#ea4335' }}>📧 Boîte de réception</h3>
+                  <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12, background: '#f9f9f9' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>security@neuralsky-systems.com</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>Anomalie détectée - Drone NS-7744</div>
+                    <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>07/10/2025 - 14:23</div>
+                  </div>
+                  <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12, background: '#f9f9f9', marginTop: 8 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>marc.dubois@neuralsky-systems.com</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>Code d'arrêt d'urgence trouvé</div>
+                    <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>07/10/2025 - 15:01</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Calculator window */}
+          {calcOpen && (
+            <div style={{
+              position: 'absolute', left: calcPos.x, top: calcPos.y, width: 280, height: 360,
+              background: 'rgba(255,255,255,0.95)', borderRadius: 12,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#111',
+              overflow: 'hidden', border: '1px solid rgba(0,0,0,0.15)'
+            }}>
+              <div style={{
+                height: 34, background: 'linear-gradient(#4a90e2, #357abd)',
+                display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #2968a3',
+                cursor: 'move', userSelect: 'none'
+              }} onMouseDown={(e) => startDrag('calc', e)}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={() => setCalcOpen(false)} title="Fermer" style={{ width: 12, height: 12, background: '#ff5f57', borderRadius: 999, border: 'none', padding: 0, cursor: 'pointer' }} />
+                  <span style={{ width: 12, height: 12, background: '#ffbd2e', borderRadius: 999 }} />
+                  <span style={{ width: 12, height: 12, background: '#28c840', borderRadius: 999 }} />
+                </div>
+                <div style={{ marginLeft: 10, fontSize: 12, fontWeight: 700, color: 'white' }}>Calculatrice</div>
+              </div>
+              <div style={{ padding: 16 }}>
+                <div style={{ 
+                  background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 8, 
+                  padding: 12, marginBottom: 16, textAlign: 'right', fontSize: 18, 
+                  fontFamily: 'monospace', minHeight: 24
+                }}>
+                  0
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {['C', '±', '%', '÷', '7', '8', '9', '×', '4', '5', '6', '−', '1', '2', '3', '+', '0', '.', '='].map((btn, idx) => (
+                    <button
+                      key={idx}
+                      style={{
+                        height: 40, border: '1px solid #ddd', borderRadius: 6,
+                        background: btn === '=' ? '#4a90e2' : '#fff',
+                        color: btn === '=' ? 'white' : '#333',
+                        cursor: 'pointer', fontSize: 16, fontWeight: 500
+                      }}
+                      onClick={() => console.log('Calculator button:', btn)}
+                    >
+                      {btn}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Clock window */}
+          {clockOpen && (
+            <div style={{
+              position: 'absolute', left: clockPos.x, top: clockPos.y, width: 320, height: 240,
+              background: 'rgba(255,255,255,0.95)', borderRadius: 12,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#111',
+              overflow: 'hidden', border: '1px solid rgba(0,0,0,0.15)'
+            }}>
+              <div style={{
+                height: 34, background: 'linear-gradient(#34a853, #2d8f47)',
+                display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #247a3e',
+                cursor: 'move', userSelect: 'none'
+              }} onMouseDown={(e) => startDrag('clock', e)}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={() => setClockOpen(false)} title="Fermer" style={{ width: 12, height: 12, background: '#ff5f57', borderRadius: 999, border: 'none', padding: 0, cursor: 'pointer' }} />
+                  <span style={{ width: 12, height: 12, background: '#ffbd2e', borderRadius: 999 }} />
+                  <span style={{ width: 12, height: 12, background: '#28c840', borderRadius: 999 }} />
+                </div>
+                <div style={{ marginLeft: 10, fontSize: 12, fontWeight: 700, color: 'white' }}>Horloge</div>
+              </div>
+              <div style={{ padding: 20, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, color: '#34a853' }}>
+                  {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </div>
+                <div style={{ fontSize: 16, color: '#666', marginBottom: 20 }}>
+                  {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </div>
+                <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 12 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>⏰ Mission Drone</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>
+                    Délai: 30 minutes<br />
+                    Statut: En cours<br />
+                    Drones actifs: 247
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Trash window */}
+          {trashOpen && (
+            <div style={{
+              position: 'absolute', left: trashPos.x, top: trashPos.y, width: 400, height: 300,
+              background: 'rgba(255,255,255,0.95)', borderRadius: 12,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#111',
+              overflow: 'hidden', border: '1px solid rgba(0,0,0,0.15)'
+            }}>
+              <div style={{
+                height: 34, background: 'linear-gradient(#666, #555)',
+                display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #444',
+                cursor: 'move', userSelect: 'none'
+              }} onMouseDown={(e) => startDrag('trash', e)}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={() => setTrashOpen(false)} title="Fermer" style={{ width: 12, height: 12, background: '#ff5f57', borderRadius: 999, border: 'none', padding: 0, cursor: 'pointer' }} />
+                  <span style={{ width: 12, height: 12, background: '#ffbd2e', borderRadius: 999 }} />
+                  <span style={{ width: 12, height: 12, background: '#28c840', borderRadius: 999 }} />
+                </div>
+                <div style={{ marginLeft: 10, fontSize: 12, fontWeight: 700, color: 'white' }}>Corbeille</div>
+              </div>
+              <div style={{ padding: 16, height: 'calc(100% - 34px)', overflowY: 'auto' }}>
+                <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
+                  <div style={{ fontSize: 16, color: '#666' }}>La corbeille est vide</div>
+                </div>
+                <div style={{ background: '#f9f9f9', borderRadius: 8, padding: 12, border: '1px solid #ddd' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>📁 Fichiers récemment supprimés</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>
+                    • ancien_rapport.pdf (supprimé il y a 2h)<br />
+                    • backup_drone_data.db (supprimé hier)<br />
+                    • temp_logs.txt (supprimé il y a 3 jours)
+                  </div>
+                  <button 
+                    style={{
+                      marginTop: 12, padding: '6px 12px', borderRadius: 6,
+                      border: '1px solid #ddd', background: '#f0f0f0',
+                      cursor: 'pointer', fontSize: 12
+                    }}
+                    onClick={() => console.log('Vider la corbeille')}
+                  >
+                    Vider la corbeille
+                  </button>
+                </div>
               </div>
             </div>
           )}
