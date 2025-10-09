@@ -3,6 +3,14 @@
 echo "🚀 Démarrage du serveur PeerJS auto-hébergé"
 echo "=========================================="
 
+# Charger les variables d'environnement depuis .env si disponible
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
+# Générer la configuration PeerJS basée sur les variables d'environnement
+node generate-peerjs-config.js ${1:-development}
+
 # Couleurs pour les messages
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -62,7 +70,7 @@ cat > peerjs-config.json << EOF
   "allow_discovery": true,
   "proxied": false,
   "cors": {
-    "origin": ["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000", "http://127.0.0.1:8000"]
+    "origin": ["${FRONTEND_URL:-http://localhost:3000}", "${BACKEND_URL:-http://localhost:8000}", "http://127.0.0.1:3000", "http://127.0.0.1:8000"]
   },
   "cleanup_out_msgs": 1000,
   "ssl": {
@@ -83,7 +91,7 @@ print_status "Attente du démarrage du serveur PeerJS..."
 sleep 3
 
 # Vérifier que le serveur fonctionne
-if curl -s http://localhost:9000 > /dev/null; then
+if curl -s http://${PEERJS_HOST:-localhost}:${PEERJS_PORT:-9000} > /dev/null; then
     print_success "Serveur PeerJS démarré avec succès !"
 else
     print_error "Échec du démarrage du serveur PeerJS"
@@ -96,18 +104,18 @@ echo "🔗 ================================================"
 echo "🔗   SERVEUR PEERJS AUTO-HÉBERGÉ"
 echo "🔗 ================================================"
 echo ""
-print_success "✅ Serveur PeerJS: http://localhost:9000"
+print_success "✅ Serveur PeerJS: http://${PEERJS_HOST:-localhost}:${PEERJS_PORT:-9000}"
 print_success "✅ Clé de serveur: peerjs"
 echo ""
 print_status "🎯 Configuration pour votre application:"
-echo "   • Host: localhost"
-echo "   • Port: 9000"
+echo "   • Host: ${PEERJS_HOST:-localhost}"
+echo "   • Port: ${PEERJS_PORT:-9000}"
 echo "   • Path: /"
 echo "   • Key: peerjs"
 echo ""
 print_status "🔧 Pour utiliser ce serveur dans votre code:"
 echo "   const peer = new Peer(id, {"
-echo "     host: 'localhost',"
+echo "     host: '${PEERJS_HOST:-localhost}',"
 echo "     port: 9000,"
 echo "     path: '/',"
 echo "     key: 'peerjs'"

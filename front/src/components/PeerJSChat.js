@@ -164,7 +164,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       debugChat('Creating PeerJS instance with local server', {
         peerId: peerId,
         serverConfig: {
-          host: 'localhost',
+          host: process.env.REACT_APP_PEERJS_HOST || 'localhost',
           port: 9000,
           path: '/',
           key: 'peerjs'
@@ -177,7 +177,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
 
       // Create peer with sanitized ID using local PeerJS server
       const peer = new window.Peer(peerId, {
-        host: 'localhost',
+        host: process.env.REACT_APP_PEERJS_HOST || 'localhost',
         port: 9000,
         path: '/',
         key: 'peerjs',

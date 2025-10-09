@@ -283,3 +283,15 @@ body {
   transform: translateY(-2px) scale(1.06);
   filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35));
 }
+
+/* Alert animation */
+@keyframes flashRed {
+  0%, 100% {
+    background: rgba(255, 0, 0, 0.3);
+    opacity: 1;
+  }
+  50% {
+    background: rgba(255, 0, 0, 0.6);
+    opacity: 0.8;
+  }
+}

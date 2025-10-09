@@ -3,6 +3,18 @@
 echo "🚀 Démarrage complet avec serveur PeerJS auto-hébergé"
 echo "===================================================="
 
+# Charger les variables d'environnement depuis .env si disponible
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+    echo "📋 Variables d'environnement chargées depuis .env"
+else
+    echo "⚠️  Fichier .env non trouvé, utilisation des valeurs par défaut"
+fi
+
+# Générer la configuration PeerJS basée sur les variables d'environnement
+echo "🔧 Génération de la configuration PeerJS..."
+node generate-peerjs-config.js ${1:-development}
+
 # Couleurs pour les messages
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -59,13 +71,15 @@ check_port() {
     fi
 }
 
-check_port 8000  # Backend
-check_port 3000  # Frontend
-check_port 9000  # PeerJS Server
+check_port ${BACKEND_PORT:-8000}  # Backend
+check_port 3000  # Frontend (port fixe pour React)
+check_port ${PEERJS_PORT:-9000}  # PeerJS Server
 
 # Démarrer le serveur PeerJS en premier
 print_peerjs "Démarrage du serveur PeerJS auto-hébergé..."
-npx peerjs-server --port 9000 --host 0.0.0.0 --key peerjs --allow_discovery &
+PEERJS_HOST=${PEERJS_HOST:-0.0.0.0}
+PEERJS_PORT=${PEERJS_PORT:-9000}
+npx peerjs-server --port ${PEERJS_PORT} --host ${PEERJS_HOST} --key peerjs --allow_discovery &
 PEERJS_PID=$!
 
 # Attendre que le serveur PeerJS soit prêt
@@ -73,7 +87,9 @@ print_peerjs "Attente du démarrage du serveur PeerJS..."
 sleep 3
 
 # Vérifier que le serveur PeerJS fonctionne
-if curl -s http://localhost:9000 > /dev/null; then
+PEERJS_HOST=${PEERJS_HOST:-localhost}
+PEERJS_PORT=${PEERJS_PORT:-9000}
+if curl -s http://${PEERJS_HOST}:${PEERJS_PORT} > /dev/null; then
     print_success "Serveur PeerJS démarré avec succès !"
 else
     print_error "Échec du démarrage du serveur PeerJS"
@@ -97,7 +113,10 @@ pip install --upgrade pip setuptools wheel > /dev/null 2>&1
 pip install -r requirements.txt > /dev/null 2>&1
 
 # Démarrer le backend en arrière-plan
-print_status "Lancement du serveur backend sur http://localhost:8000"
+BACKEND_HOST=${BACKEND_HOST:-0.0.0.0}
+BACKEND_PORT=${BACKEND_PORT:-8000}
+BACKEND_URL=${BACKEND_URL:-http://localhost:${BACKEND_PORT}}
+print_status "Lancement du serveur backend sur ${BACKEND_URL}"
 python backend/app.py &
 BACKEND_PID=$!
 
@@ -106,7 +125,7 @@ print_status "Attente du démarrage du backend..."
 sleep 3
 
 # Vérifier que le backend fonctionne
-if curl -s http://localhost:8000/rooms > /dev/null; then
+if curl -s ${BACKEND_URL}/rooms > /dev/null; then
     print_success "Backend démarré avec succès !"
 else
     print_error "Échec du démarrage du backend"
@@ -126,7 +145,8 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # Démarrer le frontend en mode debug
-print_debug "Lancement du serveur frontend avec mode debug sur http://localhost:3000"
+FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+print_debug "Lancement du serveur frontend avec mode debug sur ${FRONTEND_URL}"
 REACT_APP_DEBUG_MODE=true npm start &
 FRONTEND_PID=$!
 
@@ -135,7 +155,7 @@ print_status "Attente du démarrage du frontend..."
 sleep 5
 
 # Vérifier que le frontend fonctionne
-if curl -s http://localhost:3000 > /dev/null; then
+if curl -s ${FRONTEND_URL} > /dev/null; then
     print_success "Frontend démarré avec succès !"
 else
     print_warning "Frontend en cours de démarrage..."
@@ -146,18 +166,18 @@ echo "🎮 ================================================"
 echo "🎮   JEU MULTI-JOUEURS AVEC PEERJS LOCAL"
 echo "🎮 ================================================"
 echo ""
-print_success "✅ Serveur PeerJS: http://localhost:9000"
-print_success "✅ Backend: http://localhost:8000"
-print_success "✅ Frontend: http://localhost:3000"
+print_success "✅ Serveur PeerJS: http://${PEERJS_HOST}:${PEERJS_PORT}"
+print_success "✅ Backend: ${BACKEND_URL}"
+print_success "✅ Frontend: ${FRONTEND_URL}"
 echo ""
 print_peerjs "🎯 Configuration PeerJS:"
-echo "   • Host: localhost"
-echo "   • Port: 9000"
+echo "   • Host: ${PEERJS_HOST}"
+echo "   • Port: ${PEERJS_PORT}"
 echo "   • Key: peerjs"
 echo "   • Découverte autorisée: OUI"
 echo ""
 print_status "🎯 Instructions:"
-echo "   1. Ouvrez http://localhost:3000 dans votre navigateur"
+echo "   1. Ouvrez ${FRONTEND_URL} dans votre navigateur"
 echo "   2. Ouvrez la console développeur (F12) pour voir les logs PeerJS"
 echo "   3. Créez une salle de jeu"
 echo "   4. Le chat vocal utilisera le serveur PeerJS local"

@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+import { BACKEND_HTTP_BASE } from '../config';
+
+const API_BASE_URL = BACKEND_HTTP_BASE;
 
 const Lobby = () => {
   const [roomId, setRoomId] = useState('');

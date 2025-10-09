@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { imageUrl } from '../config';
+import { imageUrl, BACKEND_WS_BASE } from '../config';
 import { useParams } from 'react-router-dom';
 
 // Debug utilities - only initialize if debug mode is enabled
@@ -475,7 +475,7 @@ function GameEmbed({ roomId, playerName, onGameComplete, droneFound = false }) {
   const playerIdRef = useRef(null);
 
   useEffect(() => {
-    const API_BASE_URL = 'ws://localhost:8000';
+    const API_BASE_URL = BACKEND_WS_BASE;
     const ws = new WebSocket(`${API_BASE_URL}/ws/${roomId}`);
     wsRef.current = ws;
 
@@ -646,7 +646,7 @@ function GameEmbed({ roomId, playerName, onGameComplete, droneFound = false }) {
               </div>
             )}
             <img
-              src={`http://localhost:8000/images/photo_dron.png`}
+              src={imageUrl('images/photo_dron.png')}
               alt="Drone détecté"
               style={{ 
                 maxWidth: '100%', 

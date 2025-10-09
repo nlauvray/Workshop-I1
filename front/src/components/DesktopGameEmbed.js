@@ -26,7 +26,8 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [pinInput, setPinInput] = useState('');
   const [selectedUsbItem, setSelectedUsbItem] = useState(null); 
   const [alertActive, setAlertActive] = useState(false);
-  //const [alertTime, setAlertTime] = useState(30);
+  const [alertTime, setAlertTime] = useState(30);
+  const [alarmAudio, setAlarmAudio] = useState(null);
 
   const usbItems = [
     { id: 'email1', type: 'file', name: 'Email 1' },
@@ -40,11 +41,11 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
 
   const audioMap = {
     secured: [
-      { src: imageUrl('/static/assets/OrganisationMessage1.mp3'), title: 'Organisation 1', speaker: 'Organisation' },
-      { src: imageUrl('/static/assets/OrganisationMessage2.mp3'), title: 'Organisation 2', speaker: 'Organisation' },
-      { src: imageUrl('/static/assets/OrganisationMessage3.mp3'), title: 'Organisation 3', speaker: 'Organisation' },
-      { src: imageUrl('/static/assets/OrganisationMessage4.mp3'), title: 'Organisation 4', speaker: 'Organisation' },
-      { src: imageUrl('/static/assets/FinMission.mp3'), title: 'Fin de mission', speaker: 'Système' },
+      { src: imageUrl('/images/assets/OrganisationMessage1.mp3'), title: 'Organisation 1', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/OrganisationMessage2.mp3'), title: 'Organisation 2', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/OrganisationMessage3.mp3'), title: 'Organisation 3', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/OrganisationMessage4.mp3'), title: 'Organisation 4', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/FinMission.mp3'), title: 'Fin de mission', speaker: 'Système' },
     ],
   };
 
@@ -92,39 +93,40 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
     );
   };
 
-  const [alertTime, setAlertTime] = useState(30);
-
   useEffect(() => {
     if (!alertActive) return;
-
     if (alertTime <= 0) return;
 
     const timer = setTimeout(() => setAlertTime(prev => prev - 1), 1000);
     return () => clearTimeout(timer);
   }, [alertActive, alertTime]);
 
-  {alertActive && (
-    <div style={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      background: 'rgba(255,0,0,0.4)',
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'column',
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#fff',
-      textShadow: '1px 1px 4px black',
-    }}>
-      🔊 ALERTE EN COURS 🔊
-      <div style={{ marginTop: 12 }}>Temps restant : {alertTime}s</div>
-    </div>
-  )}
+  useEffect(() => {
+    if (alertActive) {
+      const alarm = new Audio(imageUrl('/images/assets/DebutMission.mp3'));
+      alarm.loop = true;
+      alarm.volume = 0.6;
+      alarm.play().catch(() => {});
+      setAlarmAudio(alarm);
+    } else {
+      if (alarmAudio) {
+        alarmAudio.pause();
+        alarmAudio.currentTime = 0;
+      }
+    }
+  }, [alertActive]);
+
+  useEffect(() => {
+    if (!alertActive || alertTime <= 0) return;
+
+    const timer = setTimeout(() => setAlertTime(prev => prev - 1), 1000);
+
+    if (alertTime === 0 && alarmAudio) {
+      alarmAudio.pause();
+    }
+
+    return () => clearTimeout(timer);
+  }, [alertActive, alertTime]);
 
   const renderUsbFileContent = (itemId) => {
     const boxStyle = { background: '#fafafa', border: '1px solid #ececec', borderRadius: 8, padding: 12, color: '#111', minHeight: 180 };
@@ -344,6 +346,34 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
           position: 'relative',
           border: '1px solid rgba(255,255,255,0.2)'
         }}>
+          {/* Alert overlay */}
+          {alertActive && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: 28,
+                textShadow: '2px 2px 8px #000',
+                animation: 'flashRed 1s infinite',
+                background: 'rgba(255,0,0,0.3)',
+              }}
+            >
+              🚨 ALERTE EN COURS 🚨
+              <div style={{ marginTop: 8, fontSize: 22 }}>
+                Temps restant : {alertTime}s
+              </div>
+            </div>
+          )}
           {/* Top bar */}
           <div className="mac-menubar" style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: 28,

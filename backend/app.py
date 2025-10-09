@@ -14,14 +14,19 @@ import uuid
 import logging
 from datetime import datetime
 
+# Configuration des variables d'environnement
 DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+BACKEND_HOST = os.getenv('BACKEND_HOST', '0.0.0.0')
+BACKEND_PORT = int(os.getenv('BACKEND_PORT', '8000'))
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+BACKEND_URL = os.getenv('BACKEND_URL', f'http://localhost:{BACKEND_PORT}')
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], 
+    allow_origins=[FRONTEND_URL], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,7 +40,7 @@ app.mount(
 
 app.mount(
     "/static/assets",
-    StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "assets")),
+    StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "images", "assets")),
     name="static_assets",
 )
 
@@ -464,7 +469,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
         if getattr(room, 'game_type', 'drone') == 'desktop':
             current_state = {
                 "type": "desktop_wallpaper",
-                "url": "http://localhost:8000/images/os-x-mountain-lion-3840x2160-24066.jpg"
+                "url": f"{BACKEND_URL}/images/os-x-mountain-lion-3840x2160-24066.jpg"
             }
         else:
             current_state = {
@@ -511,7 +516,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
             # Desktop specific light protocol
             if getattr(room, 'game_type', 'drone') == 'desktop':
                 if command.get("type") == "desktop_hello":
-                    await websocket.send_text(json.dumps({"type": "desktop_wallpaper", "url": "http://localhost:8000/images/os-x-mountain-lion-3840x2160-24066.jpg"}))
+                    await websocket.send_text(json.dumps({"type": "desktop_wallpaper", "url": f"{BACKEND_URL}/images/os-x-mountain-lion-3840x2160-24066.jpg"}))
                 elif command.get("type") == "set_name":
                     desired = str(command.get("name", "")).strip()
                     if len(desired) == 0:
@@ -692,4 +697,4 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=BACKEND_HOST, port=BACKEND_PORT)

@@ -13,7 +13,7 @@ const ICONS = {
   livreBureau: imageUrl('/images/assets/Salle2LivreBureau.png'),
   page: imageUrl('/images/assets/Salle2PageMdp.png'),
   coffre: imageUrl('/images/assets/Salle2Coffre.png'),
-  europeMap: imageUrl('/images/ssets/MapEpingle.png'),
+  europeMap: imageUrl('/images/assets/MapEpingle.png'),
 };
 
 const SAFE_PIN = '4227';
@@ -175,34 +175,44 @@ const Salle2Createur = ({ session, onNext, onDesktop, onAeroport }) => {
 
       {usbFound && (
         <div style={{
-          position: 'absolute',
-          bottom: 16,
-          left: 16,
-          background: '#000a',
-          color: '#fff',
-          padding: 12,
-          borderRadius: 8,
-          boxShadow: '0 0 10px #0f0',
-          fontSize: '16px'
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
         }}>
-          🎉 Clé USB récupérée avec succès !
-          <div>
-            <button
-              onClick={onDesktop}
-              style={{
-                marginTop: 8,
-                padding: '8px 16px',
-                background: 'linear-gradient(90deg, #16a34a, #22c55e)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              Passer au bureau
-            </button>
-          </div>
+          <button
+            onClick={onDesktop}
+            style={{
+              padding: '20px 40px',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 16,
+              cursor: 'pointer',
+              boxShadow: '0 12px 30px rgba(16, 185, 129, 0.5), 0 4px 15px rgba(5, 150, 105, 0.3)',
+              transition: 'all 0.3s ease',
+              minWidth: '280px',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 15px 35px rgba(16, 185, 129, 0.6), 0 6px 20px rgba(5, 150, 105, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 12px 30px rgba(16, 185, 129, 0.5), 0 4px 15px rgba(5, 150, 105, 0.3)';
+            }}
+          >
+            ➤ CONTINUER
+          </button>
         </div>
       )}
 

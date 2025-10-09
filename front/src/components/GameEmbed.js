@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { BACKEND_WS_BASE, imageUrl } from '../config';
 
 // Composant GameEmbed qui intègre directement le jeu de drone
 function GameEmbed({ roomId, playerName, onGameComplete, droneFound = false }) {
@@ -16,7 +17,7 @@ function GameEmbed({ roomId, playerName, onGameComplete, droneFound = false }) {
   const playerIdRef = useRef(null);
 
   useEffect(() => {
-    const API_BASE_URL = 'ws://localhost:8000';
+    const API_BASE_URL = BACKEND_WS_BASE;
     const ws = new WebSocket(`${API_BASE_URL}/ws/${roomId}`);
     wsRef.current = ws;
 
@@ -187,7 +188,7 @@ function GameEmbed({ roomId, playerName, onGameComplete, droneFound = false }) {
               </div>
             )}
             <img
-              src={`http://localhost:8000/images/photo_dron.png`}
+              src={imageUrl('images/photo_dron.png')}
               alt="Drone détecté"
               style={{ 
                 maxWidth: '100%', 
