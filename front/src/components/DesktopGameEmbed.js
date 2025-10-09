@@ -28,6 +28,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [alertActive, setAlertActive] = useState(false);
   const [alertTime, setAlertTime] = useState(30);
   const [alarmAudio, setAlarmAudio] = useState(null);
+  const [completedAudios, setCompletedAudios] = useState(new Set());
 
   const usbItems = [
     { id: 'email1', type: 'file', name: 'Email 1' },
@@ -45,13 +46,25 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
       { src: imageUrl('/images/assets/OrganisationMessage2.mp3'), title: 'Organisation 2', speaker: 'Organisation' },
       { src: imageUrl('/images/assets/OrganisationMessage3.mp3'), title: 'Organisation 3', speaker: 'Organisation' },
       { src: imageUrl('/images/assets/OrganisationMessage4.mp3'), title: 'Organisation 4', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/FinMission.mp3'), title: 'Fin de mission', speaker: 'Système' },
+      { src: imageUrl('/images/assets/OrganisationMessage5.mp3'), title: 'Organisation 5', speaker: 'Organisation', isAlarmTrigger: true },
     ],
   };
 
   const renderVoices = (key) => {
-    const voices = audioMap[key] || [];
+    const allVoices = audioMap[key] || [];
+    if (!allVoices.length) return null;
+    
+    // Filtrer les audios : Organisation 5 ne s'affiche que si les 4 premiers sont complétés
+    const voices = allVoices.filter((v, idx) => {
+      if (v.isAlarmTrigger) {
+        // Organisation 5 ne s'affiche que si les 4 premiers audios sont complétés
+        return completedAudios.size >= 4;
+      }
+      return true;
+    });
+    
     if (!voices.length) return null;
+    
     return (
       <div style={{ marginTop: 12 }}>
         <div style={{ fontWeight: 600, marginBottom: 6 }}>Messages vocaux</div>
@@ -61,34 +74,28 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
               <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>
                 {v.title} — <span style={{ color: '#6b7280' }}>{v.speaker}</span>
               </div>
-              <audio controls preload="none" style={{ width: '100%' }}>
+              <audio 
+                controls 
+                preload="none" 
+                style={{ width: '100%' }}
+                onPlay={() => {
+                  if (v.isAlarmTrigger) {
+                    setAlertActive(true);
+                  }
+                }}
+                onEnded={() => {
+                  // Marquer l'audio comme complété quand il se termine
+                  if (!v.isAlarmTrigger) {
+                    setCompletedAudios(prev => new Set([...prev, idx]));
+                  }
+                }}
+              >
                 <source src={v.src} type="audio/mpeg" />
               </audio>
             </div>
           ))}
         </div>
 
-        {/* Bouton alerte */}
-        <button
-          onClick={() => setAlertActive(true)}
-          style={{
-            marginTop: 12,
-            width: 40,
-            height: 40,
-            borderRadius: 8,
-            border: '1px solid #e5e7eb',
-            background: '#ff4d4d',
-            color: '#fff',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            fontSize: 18,
-          }}
-          title="Lancer alerte"
-        >
-          ✖
-        </button>
-
-        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>Placez vos fichiers audio dans /public/audio/ (mp3).</div>
       </div>
     );
   };
