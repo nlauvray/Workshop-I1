@@ -1,0 +1,16 @@
+{
+  "port": 9000,
+  "path": "/",
+  "host": "0.0.0.0",
+  "key": "peerjs",
+  "allow_discovery": true,
+  "proxied": false,
+  "cors": {
+    "origin": ["https://localhost:3000", "https://localhost:8000", "https://127.0.0.1:3000", "https://127.0.0.1:8000"]
+  },
+  "cleanup_out_msgs": 1000,
+  "ssl": {
+    "key": "ssl/key.pem",
+    "cert": "ssl/cert.pem"
+  }
+}
