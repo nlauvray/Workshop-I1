@@ -26,7 +26,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [pinInput, setPinInput] = useState('');
   const [selectedUsbItem, setSelectedUsbItem] = useState(null); 
   const [alertActive, setAlertActive] = useState(false);
-  const [alertTime, setAlertTime] = useState(30);
+  const [alertTime, setAlertTime] = useState(60);
   const [alarmAudio, setAlarmAudio] = useState(null);
   const [completedAudios, setCompletedAudios] = useState(new Set());
   const [mailOpen, setMailOpen] = useState(false);
@@ -37,6 +37,17 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [calcPos, setCalcPos] = useState({ x: 380, y: 120 });
   const [clockPos, setClockPos] = useState({ x: 440, y: 140 });
   const [trashPos, setTrashPos] = useState({ x: 500, y: 160 });
+  
+  // Mini-jeu Machine à sous pour annuler l'alarme
+  const [slotMachineOpen, setSlotMachineOpen] = useState(false);
+  const [slotMachinePos, setSlotMachinePos] = useState({ x: 100, y: 100 });
+  const [slotColumns, setSlotColumns] = useState([
+    { currentLetter: 'A', isSpinning: true, targetLetter: 'S' },
+    { currentLetter: 'A', isSpinning: true, targetLetter: 'T' },
+    { currentLetter: 'A', isSpinning: true, targetLetter: 'O' },
+    { currentLetter: 'A', isSpinning: true, targetLetter: 'P' }
+  ]);
+  const [slotMachineCompleted, setSlotMachineCompleted] = useState(false);
 
   const usbItems = [
     { id: 'email1', type: 'file', name: 'Email 1' },
@@ -123,6 +134,34 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
     }
   }, [alertActive]);
 
+  // Ouvrir automatiquement la machine à sous 2 secondes après le déclenchement de l'alarme
+  useEffect(() => {
+    if (alertActive && !slotMachineOpen) {
+      const timer = setTimeout(() => {
+        setSlotMachineOpen(true);
+        // Réinitialiser les colonnes
+        setSlotColumns([
+          { currentLetter: 'A', isSpinning: true, targetLetter: 'S' },
+          { currentLetter: 'A', isSpinning: true, targetLetter: 'T' },
+          { currentLetter: 'A', isSpinning: true, targetLetter: 'O' },
+          { currentLetter: 'A', isSpinning: true, targetLetter: 'P' }
+        ]);
+      }, 2000); // 2 secondes de délai
+
+      return () => clearTimeout(timer);
+    }
+  }, [alertActive, slotMachineOpen]);
+
+  // Annuler l'alarme si la machine à sous est complétée
+  useEffect(() => {
+    if (slotMachineCompleted && alertActive) {
+      setAlertActive(false);
+      setAlertTime(60);
+      setSlotMachineCompleted(false);
+      setSlotMachineOpen(false);
+    }
+  }, [slotMachineCompleted, alertActive]);
+
   useEffect(() => {
     if (!alertActive || alertTime <= 0) return;
 
@@ -138,6 +177,70 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
 
     return () => clearTimeout(timer);
   }, [alertActive, alertTime, alarmAudio]);
+
+  // Logique de la machine à sous
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const STOP_LETTERS = 'STOP';
+  
+  const handleSlotColumnClick = (columnIndex) => {
+    const column = slotColumns[columnIndex];
+    
+    if (column.isSpinning) {
+      // Arrêter la colonne
+      const newColumns = [...slotColumns];
+      newColumns[columnIndex].isSpinning = false;
+      setSlotColumns(newColumns);
+      
+      // Vérifier si toutes les colonnes sont arrêtées
+      const allStopped = newColumns.every(col => !col.isSpinning);
+      
+      if (allStopped) {
+        // Vérifier si le mot formé est STOP
+        const isCorrect = newColumns.every(col => col.currentLetter === col.targetLetter);
+        
+        if (isCorrect) {
+          setSlotMachineCompleted(true);
+        } else {
+          // Réinitialiser toutes les colonnes si le mot n'est pas STOP
+          setTimeout(() => {
+            setSlotColumns([
+              { currentLetter: 'A', isSpinning: true, targetLetter: 'S' },
+              { currentLetter: 'A', isSpinning: true, targetLetter: 'T' },
+              { currentLetter: 'A', isSpinning: true, targetLetter: 'O' },
+              { currentLetter: 'A', isSpinning: true, targetLetter: 'P' }
+            ]);
+          }, 1000);
+        }
+      }
+    } else if (!column.isSpinning && column.currentLetter !== column.targetLetter) {
+      // Reload cette colonne spécifique
+      const newColumns = [...slotColumns];
+      newColumns[columnIndex] = { currentLetter: 'A', isSpinning: true, targetLetter: column.targetLetter };
+      setSlotColumns(newColumns);
+    }
+  };
+
+  // Animation des colonnes qui tournent (beaucoup plus lent)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSlotColumns(prevColumns => 
+        prevColumns.map(column => {
+          // Si la colonne tourne, elle continue à tourner avec tout l'alphabet
+          if (column.isSpinning) {
+            const currentIndex = ALPHABET.indexOf(column.currentLetter);
+            const nextIndex = (currentIndex + 1) % ALPHABET.length;
+            return {
+              ...column,
+              currentLetter: ALPHABET[nextIndex]
+            };
+          }
+          return column;
+        })
+      );
+    }, 500); // Ralenti de 100ms à 500ms
+
+    return () => clearInterval(interval);
+  }, []);
 
   const renderUsbFileContent = (itemId) => {
     const boxStyle = { background: '#fafafa', border: '1px solid #ececec', borderRadius: 8, padding: 12, color: '#111', minHeight: 180 };
@@ -308,6 +411,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
       case 'calc': pos = calcPos; break;
       case 'clock': pos = clockPos; break;
       case 'trash': pos = trashPos; break;
+      case 'slot': pos = slotMachinePos; break;
       default: pos = { x: 0, y: 0 };
     }
     setDragTarget(target);
@@ -326,6 +430,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
         case 'calc': setCalcPos(newPos); break;
         case 'clock': setClockPos(newPos); break;
         case 'trash': setTrashPos(newPos); break;
+        case 'slot': setSlotMachinePos(newPos); break;
       }
     };
     const onUp = () => setDragTarget(null);
@@ -335,7 +440,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [dragTarget, dragOffset, folderPos, notesPos, usbPos, mailPos, calcPos, clockPos, trashPos]);
+    }, [dragTarget, dragOffset, folderPos, notesPos, usbPos, mailPos, calcPos, clockPos, trashPos, slotMachinePos]);
 
   const handleIconClick = (icon) => {
     if (!icon.clickable) return;
@@ -573,7 +678,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
                         background: '#fafafa', border: '1px solid #ececec', borderRadius: 8,
                         padding: 12, color: '#111', minHeight: 180
                       }}>
-                        Contenu du dossier sécurisé. Remplacez par vos pages/données.
+                       
                         {renderVoices('secured')}
                       </div>
                     </div>
@@ -787,6 +892,107 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
                     Vider la corbeille
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Machine à sous pour annuler l'alarme - Popup d'urgence non-fermable */}
+          {slotMachineOpen && (
+            <div style={{
+              position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', 
+              width: 500, height: 400, zIndex: 10000,
+              background: 'rgba(255,255,255,0.98)', borderRadius: 12,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)', color: '#111',
+              overflow: 'hidden', border: '3px solid #dc2626',
+              animation: 'pulseRed 1s infinite'
+            }}>
+              <div style={{
+                height: 40, background: 'linear-gradient(#dc2626, #b91c1c)',
+                display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '2px solid #991b1b',
+                cursor: 'move', userSelect: 'none'
+              }} onMouseDown={(e) => startDrag('slot', e)}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{ width: 12, height: 12, background: '#ff5f57', borderRadius: 999, opacity: 0.5 }} />
+                  <span style={{ width: 12, height: 12, background: '#ffbd2e', borderRadius: 999, opacity: 0.5 }} />
+                  <span style={{ width: 12, height: 12, background: '#28c840', borderRadius: 999, opacity: 0.5 }} />
+                </div>
+                <div style={{ marginLeft: 10, fontSize: 14, fontWeight: 700, color: 'white' }}>🚨 ALARME</div>
+                <div style={{ marginLeft: 'auto', fontSize: 12, color: '#fecaca' }}>
+                  {alertTime}s restant
+                </div>
+              </div>
+              <div style={{ padding: 20, height: 'calc(100% - 40px)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ marginBottom: 20 }}>
+                </div>
+                
+                {/* Machine à sous */}
+                <div style={{ 
+                  display: 'flex', gap: 20, marginBottom: 20,
+                  background: '#f8f9fa', padding: 20, borderRadius: 12, border: '2px solid #e9ecef'
+                }}>
+                  {slotColumns.map((column, index) => (
+                    <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ 
+                        width: 60, height: 120, border: '3px solid #dc2626', borderRadius: 8,
+                        background: '#fff', marginBottom: 8, position: 'relative', overflow: 'hidden'
+                      }}>
+                        {/* Affichage de 5 lettres qui défilent */}
+                        <div 
+                          onClick={() => handleSlotColumnClick(index)}
+                          style={{
+                            position: 'absolute', top: 0, left: 0, right: 0, height: '100%',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                            cursor: column.isSpinning ? 'pointer' : 'default'
+                          }}
+                        >
+                          {column.isSpinning ? (
+                            // Mode défilement : montrer 5 lettres avec la lettre actuelle au milieu
+                            ['', '', '', '', ''].map((_, index) => {
+                              const currentIndex = ALPHABET.indexOf(column.currentLetter);
+                              const letterIndex = (currentIndex + index - 2) % ALPHABET.length;
+                              const isCenter = index === 2; // La lettre au milieu (index 2)
+                              return (
+                                <div key={index} style={{
+                                  fontSize: isCenter ? 24 : 16, 
+                                  fontWeight: isCenter ? 900 : 400, // Gras pour la lettre du milieu
+                                  color: isCenter ? '#333' : '#999',
+                                  height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  opacity: isCenter ? 1 : 0.4
+                                }}>
+                                  {ALPHABET[letterIndex]}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            // Mode arrêté : montrer la lettre finale
+                            <div style={{
+                              fontSize: 32, fontWeight: 700, 
+                              color: column.currentLetter === column.targetLetter ? '#10b981' : '#dc2626',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              height: '100%'
+                            }}>
+                              {column.currentLetter}
+                            </div>
+                          )}
+                        </div>
+                        
+                      </div>
+                      <button
+                        onClick={() => handleSlotColumnClick(index)}
+                        disabled={column.isSpinning && column.currentLetter === column.targetLetter}
+                        style={{
+                          padding: '6px 12px', borderRadius: 6, border: '1px solid #d1d5db',
+                          background: column.isSpinning ? '#6b7280' : (column.currentLetter === column.targetLetter ? '#10b981' : '#6b7280'),
+                          color: 'white', cursor: (!column.isSpinning && column.currentLetter !== column.targetLetter) ? 'pointer' : 'not-allowed',
+                          fontSize: 11, fontWeight: 600, transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {column.isSpinning ? '⏸️' : (column.currentLetter === column.targetLetter ? '✅' : '🔄 RELOAD')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                
               </div>
             </div>
           )}
