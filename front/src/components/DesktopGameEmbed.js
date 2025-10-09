@@ -23,6 +23,9 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
   const [securedUnlocked, setSecuredUnlocked] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [selectedUsbItem, setSelectedUsbItem] = useState(null); 
+  const [alertActive, setAlertActive] = useState(false);
+  //const [alertTime, setAlertTime] = useState(30);
+
   const usbItems = [
     { id: 'email1', type: 'file', name: 'Email 1' },
     { id: 'email2', type: 'file', name: 'Email 2' },
@@ -41,6 +44,7 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
       { src: '/assets/Organisation4.mp3', title: 'Organisation 4', speaker: 'Organisation' },
     ],
   };
+  
    const audioMap = {
     secured: [
       { src: '/assets/FinMission.mp3', title: 'Fin de mission', speaker: 'Système' },
@@ -56,17 +60,74 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {voices.map((v, idx) => (
             <div key={idx} style={{ border: '1px solid #ececec', borderRadius: 8, padding: 8, background: '#fff' }}>
-              <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>{v.title} — <span style={{ color: '#6b7280' }}>{v.speaker}</span></div>
+              <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>
+                {v.title} — <span style={{ color: '#6b7280' }}>{v.speaker}</span>
+              </div>
               <audio controls preload="none" style={{ width: '100%' }}>
                 <source src={v.src} type="audio/mpeg" />
               </audio>
             </div>
           ))}
         </div>
+
+        {/* Bouton alerte */}
+        <button
+          onClick={() => setAlertActive(true)}
+          style={{
+            marginTop: 12,
+            width: 40,
+            height: 40,
+            borderRadius: 8,
+            border: '1px solid #e5e7eb',
+            background: '#ff4d4d',
+            color: '#fff',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            fontSize: 18,
+          }}
+          title="Lancer alerte"
+        >
+          ✖
+        </button>
+
         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>Placez vos fichiers audio dans /public/audio/ (mp3).</div>
       </div>
     );
   };
+
+  const [alertTime, setAlertTime] = useState(30);
+
+  useEffect(() => {
+    if (!alertActive) return;
+
+    if (alertTime <= 0) return;
+
+    const timer = setTimeout(() => setAlertTime(prev => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [alertActive, alertTime]);
+
+  {alertActive && (
+    <div style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(255,0,0,0.4)',
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'column',
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#fff',
+      textShadow: '1px 1px 4px black',
+    }}>
+      🔊 ALERTE EN COURS 🔊
+      <div style={{ marginTop: 12 }}>Temps restant : {alertTime}s</div>
+    </div>
+  )}
 
   const renderUsbFileContent = (itemId) => {
     const boxStyle = { background: '#fafafa', border: '1px solid #ececec', borderRadius: 8, padding: 12, color: '#111', minHeight: 180 };

@@ -25,46 +25,45 @@ if (DEBUG_MODE) {
   debugAeroport = (message, data = null) => debugLog('AEROPORT', message, data);
   debugUI = (message, data = null) => debugLog('UI', message, data);
 } else {
-  // No-op functions when debug is disabled
   debugAeroport = () => {};
   debugUI = () => {};
 }
 
-// Assets served by backend static directory: /images/assets
+// Assets
 const photoIcon = imageUrl('/images/assets/camera.png');
 const gpsIcon = imageUrl('/images/assets/radar.png');
 const radioIcon = imageUrl('/images/assets/walkie_talkie.png');
 const mapIcon = imageUrl('/images/assets/map.png');
 const bgAeroport = imageUrl('/images/assets/airport.png');
+
 const audioDebutMission = { 
   secure: [
     { src: '/assets/DebutMission.mp3', title: 'Début de mission', speaker: 'Système' },
   ] 
 };
+
 const audioFinSalle1 = { 
   secure: [
     { src: '/assets/FinSalle1.mp3', title: 'Fin Salle 1', speaker: 'Fin' },
   ] 
 };
 
-
 const droneCode = '10388';
 
-function LeafletMap({ center, zoom, markerPos, onMapClick }) {
+// Composant carte avec curseur en croix qui suit la souris
+function LeafletMap({ center, zoom, markerPos, onMapClick, onMouseMove }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Inject Leaflet CSS/JS from CDN once
     const ensureLeaflet = async () => {
       if (window.L && window.L.map) {
         setReady(true);
         return;
       }
       await new Promise((resolve) => {
-        // CSS
         if (!document.getElementById('leaflet-css-cdn')) {
           const link = document.createElement('link');
           link.id = 'leaflet-css-cdn';
@@ -72,7 +71,6 @@ function LeafletMap({ center, zoom, markerPos, onMapClick }) {
           link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
           document.head.appendChild(link);
         }
-        // JS
         if (document.getElementById('leaflet-js-cdn')) {
           const s = document.getElementById('leaflet-js-cdn');
           if (s.getAttribute('data-loaded') === 'true') return resolve();
@@ -98,17 +96,26 @@ function LeafletMap({ center, zoom, markerPos, onMapClick }) {
     if (!ready || !containerRef.current) return;
     if (!mapRef.current) {
       const L = window.L;
-      mapRef.current = L.map(containerRef.current).setView(center, zoom);
+      mapRef.current = L.map(containerRef.current, {
+        center: center,
+        zoom: zoom,
+        zoomControl: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: false
+      });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(mapRef.current);
+      
       mapRef.current.on('click', (e) => {
         if (onMapClick) onMapClick(e.latlng.lat, e.latlng.lng);
       });
-    } else {
-      mapRef.current.setView(center, zoom);
+      
+      mapRef.current.on('mousemove', (e) => {
+        if (onMouseMove) onMouseMove(e.latlng.lat, e.latlng.lng);
+      });
     }
-  }, [ready, center, zoom, onMapClick]);
+  }, [ready, center, zoom, onMapClick, onMouseMove]);
 
   useEffect(() => {
     if (!ready || !mapRef.current) return;
@@ -134,19 +141,19 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
   const { roomId } = useParams();
   const playerName = typeof window !== 'undefined' ? (localStorage.getItem('playerName') || 'Joueur') : 'Joueur';
   
-  // AeroportGame est maintenant le jeu principal coopératif
-  const [popup, setPopup] = useState(null); // 'photo' | 'gps' | 'radio' | 'carte' | null
+  const [popup, setPopup] = useState(null); 
   const [photoTaken, setPhotoTaken] = useState(false);
   const [codeEntered, setCodeEntered] = useState('');
   const [gpsValidated, setGpsValidated] = useState(false);
-  const [coords, setCoords] = useState('');
+  const [coords, setCoords] = useState(null);
+  const [mouseCoords, setMouseCoords] = useState(null);
+  const [coordsValidated, setCoordsValidated] = useState(false);
   const [showGame, setShowGame] = useState(false);
-  const [droneFound, setDroneFound] = useState(false); // État persistant du drone trouvé
-  const [showOfficeGame, setShowOfficeGame] = useState(false); // État pour afficher officeGame
-  const [showDesktopGame, setShowDesktopGame] = useState(false); // État pour afficher DesktopGame
-  const [chatStarted, setChatStarted] = useState(false); // État pour démarrer le chat vocal
+  const [droneFound, setDroneFound] = useState(false); 
+  const [showOfficeGame, setShowOfficeGame] = useState(false); 
+  const [showDesktopGame, setShowDesktopGame] = useState(false); 
+  const [chatStarted, setChatStarted] = useState(false); 
 
-  // Debug: Log component initialization
   useEffect(() => {
     debugAeroport('Component initialized', {
       roomId,
@@ -156,7 +163,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
     });
   }, [roomId, playerName, session]);
 
-  // Lecture auto au lancement de la salle 1
+  // Audio au lancement
   useEffect(() => {
     try {
       const a = new Audio(audioDebutMission.secure[0].src);
@@ -165,6 +172,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
     } catch {}
   }, []);
 
+  // Charger PeerJS
   useEffect(() => {
     const loadPeerJS = async () => {
       if (window.Peer) {
@@ -173,7 +181,6 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
       }
 
       try {
-        // Load PeerJS from CDN
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';
         script.async = true;
@@ -197,7 +204,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
     loadPeerJS();
   }, []);
 
-  // Add CSS animations
+  // CSS animations
   useEffect(() => {
     const styleId = 'aeroport-game-animations';
     if (document.getElementById(styleId)) return;
@@ -239,6 +246,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
 
   const renderPopup = () => {
     const textStyle = { color: '#111' };
+    
     if (popup === 'photo') {
       return (
         <div className="popup-obj" style={popupStyle}>
@@ -252,19 +260,18 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
                 droneFound={droneFound}
                 onGameComplete={() => {
                   setPhotoTaken(true);
-                  setDroneFound(true); // Marquer le drone comme trouvé de façon persistante
+                  setDroneFound(true);
                 }}
               />
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => { 
-              setPopup(null); 
-            }}>Fermer</button>
+            <button onClick={() => setPopup(null)}>Fermer</button>
           </div>
         </div>
       );
     }
+    
     if (popup === 'gps') {
       return (
         <div className="popup-obj" style={popupStyle}>
@@ -287,11 +294,11 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
               if (codeEntered === droneCode) {
                 debugAeroport('GPS code validated successfully', { roomId, playerName });
                 setGpsValidated(true);
-            try {
-              const a = new Audio(audioFinSalle1.secure[0].src);
-              a.volume = 1.0;
-              a.play().catch(() => {});
-            } catch {}
+                try {
+                  const a = new Audio(audioFinSalle1.secure[0].src);
+                  a.volume = 1.0;
+                  a.play().catch(() => {});
+                } catch {}
               } else {
                 debugAeroport('GPS code validation failed', { 
                   entered: codeEntered, 
@@ -313,6 +320,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
         </div>
       );
     }
+    
     if (popup === 'radio') {
       return (
         <div className="popup-obj" style={popupStyle}>
@@ -368,174 +376,248 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
           <button onClick={() => {
             debugUI('Radio popup closed');
             setPopup(null);
-            setChatStarted(false); // Arrêter le chat en fermant la popup
+            setChatStarted(false);
           }}>Fermer</button>
         </div>
       );
     }
    
     if (popup === 'carte') {
-      const marker = coords ? coords.split(',').map(Number) : null;
-      const currentLat = marker ? marker[0] : null;
-      const currentLng = marker ? marker[1] : null;
+      const mapBounds = {
+        latMin: 35,
+        latMax: 71,
+        lngMin: -10,
+        lngMax: 40
+      };
+
+      // Utiliser mouseCoords pour le curseur, coords pour le point placé
+      const cursorLat = mouseCoords ? mouseCoords.lat : null;
+      const cursorLng = mouseCoords ? mouseCoords.lng : null;
+      
+      const currentLat = coords ? coords.lat : null;
+      const currentLng = coords ? coords.lng : null;
+      
+      // Calcul des positions des indicateurs du curseur
+      const cursorLatPercent = cursorLat 
+        ? ((mapBounds.latMax - cursorLat) / (mapBounds.latMax - mapBounds.latMin)) * 100 
+        : null;
+      const cursorLngPercent = cursorLng 
+        ? ((cursorLng - mapBounds.lngMin) / (mapBounds.lngMax - mapBounds.lngMin)) * 100 
+        : null;
       
       return (
         <div className="popup-obj" style={{ ...popupStyle, minWidth: '900px', maxWidth: '95vw' }}>
           <h3 style={textStyle}>Carte interactive</h3>
-          <p style={textStyle}>Cliquez sur la carte pour placer un point et lire ses coordonnées.</p>
+          <p style={textStyle}>Cliquez sur la carte pour placer un point. Vous pouvez replacer le point autant de fois que vous voulez.</p>
           
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-            {/* Barre de latitude à gauche */}
+            {/* Échelle latitude */}
             <div style={{ 
-              width: 60, 
+              width: 70, 
               height: 500, 
-              background: 'linear-gradient(180deg, #f0f0f0, #e0e0e0)',
-              border: '2px solid #999',
+              background: 'linear-gradient(180deg, #2c3e50, #34495e)',
+              border: '3px solid #1a252f',
               borderRadius: 8,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              padding: '8px 4px',
+              padding: '12px 6px',
               fontSize: 11,
               fontWeight: 'bold',
-              color: '#333',
-              position: 'relative'
+              color: '#ecf0f1',
+              position: 'relative',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
             }}>
-              <div style={{ textAlign: 'center' }}>48.90°N</div>
-              <div style={{ textAlign: 'center' }}>48.85°N</div>
-              <div style={{ textAlign: 'center' }}>48.80°N</div>
+              <div style={{ textAlign: 'center', padding: '4px 0' }}>71°N</div>
+              <div style={{ textAlign: 'center', padding: '4px 0' }}>53°N</div>
+              <div style={{ textAlign: 'center', padding: '4px 0' }}>35°N</div>
               
-              {/* Indicateur de latitude actuelle */}
-              {currentLat && (
+              {/* Indicateur du curseur */}
+              {cursorLatPercent !== null && cursorLatPercent >= 0 && cursorLatPercent <= 100 && (
                 <div style={{
                   position: 'absolute',
-                  right: -8,
-                  top: `${((48.90 - currentLat) / (48.90 - 48.80)) * 100}%`,
-                  width: 16,
-                  height: 16,
-                  background: 'red',
-                  border: '2px solid white',
+                  right: -12,
+                  top: `${cursorLatPercent}%`,
+                  width: 20,
+                  height: 20,
+                  background: '#3498db',
+                  border: '3px solid white',
                   borderRadius: '50%',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  transform: 'translateY(-50%)'
+                  boxShadow: '0 2px 12px rgba(52, 152, 219, 0.8)',
+                  transform: 'translateY(-50%)',
+                  zIndex: 10
                 }} />
               )}
             </div>
 
-            {/* Carte principale */}
+            {/* Carte avec curseur en croix */}
             <div style={{ position: 'relative' }}>
-              <div style={{ width: 700, height: 500, marginBottom: 16, position: 'relative' }}>
+              <div style={{ 
+                width: 700, 
+                height: 500, 
+                marginBottom: 16, 
+                position: 'relative',
+                border: '3px solid #1a252f',
+                borderRadius: 8,
+                overflow: 'hidden',
+                boxShadow: '0 6px 20px rgba(0,0,0,0.4)'
+              }}>
                 <LeafletMap
-                  center={[48.8566, 2.3522]}
-                  zoom={13}
-                  markerPos={marker}
+                  center={[50, 15]}
+                  zoom={4}
+                  markerPos={coords ? [coords.lat, coords.lng] : null}
                   onMapClick={(lat, lng) => {
-                    const newCoords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
                     debugAeroport('Map coordinates selected', {
                       lat: lat.toFixed(5),
                       lng: lng.toFixed(5),
-                      coords: newCoords,
                       roomId,
                       playerName
                     });
-                    setCoords(newCoords);
+                    setCoords({ lat, lng });
+                  }}
+                  onMouseMove={(lat, lng) => {
+                    setMouseCoords({ lat, lng });
                   }}
                 />
                 
-                {/* Lignes de croisement (crosshair) */}
-                {marker && (
+                {/* Lignes du curseur qui suivent la souris */}
+                {mouseCoords && cursorLatPercent !== null && cursorLngPercent !== null && 
+                 cursorLatPercent >= 0 && cursorLatPercent <= 100 && 
+                 cursorLngPercent >= 0 && cursorLngPercent <= 100 && (
                   <>
-                    {/* Ligne horizontale */}
+                    {/* Ligne horizontale du curseur */}
                     <div style={{
                       position: 'absolute',
-                      top: '50%',
+                      top: `${cursorLatPercent}%`,
                       left: 0,
                       width: '100%',
                       height: 2,
-                      background: 'rgba(255, 0, 0, 0.6)',
+                      background: 'rgba(52, 152, 219, 0.7)',
                       pointerEvents: 'none',
-                      zIndex: 1000,
-                      boxShadow: '0 0 4px rgba(0,0,0,0.5)'
+                      zIndex: 999,
+                      boxShadow: '0 0 6px rgba(52, 152, 219, 0.8)'
                     }} />
                     
-                    {/* Ligne verticale */}
+                    {/* Ligne verticale du curseur */}
                     <div style={{
                       position: 'absolute',
-                      left: '50%',
+                      left: `${cursorLngPercent}%`,
                       top: 0,
                       width: 2,
                       height: '100%',
-                      background: 'rgba(255, 0, 0, 0.6)',
+                      background: 'rgba(52, 152, 219, 0.7)',
                       pointerEvents: 'none',
-                      zIndex: 1000,
-                      boxShadow: '0 0 4px rgba(0,0,0,0.5)'
+                      zIndex: 999,
+                      boxShadow: '0 0 6px rgba(52, 152, 219, 0.8)'
                     }} />
                   </>
                 )}
               </div>
               
-              {/* Barre de longitude en bas */}
+              {/* Échelle longitude */}
               <div style={{ 
                 width: 700, 
-                height: 50, 
-                background: 'linear-gradient(90deg, #f0f0f0, #e0e0e0)',
-                border: '2px solid #999',
+                height: 60, 
+                background: 'linear-gradient(90deg, #2c3e50, #34495e)',
+                border: '3px solid #1a252f',
                 borderRadius: 8,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '4px 8px',
+                padding: '6px 12px',
                 fontSize: 11,
                 fontWeight: 'bold',
-                color: '#333',
-                position: 'relative'
+                color: '#ecf0f1',
+                position: 'relative',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
               }}>
-                <div>2.30°E</div>
-                <div>2.35°E</div>
-                <div>2.40°E</div>
+                <div style={{ padding: '4px 0' }}>10°O</div>
+                <div style={{ padding: '4px 0' }}>15°E</div>
+                <div style={{ padding: '4px 0' }}>40°E</div>
                 
-                {/* Indicateur de longitude actuelle */}
-                {currentLng && (
+                {/* Indicateur du curseur */}
+                {cursorLngPercent !== null && cursorLngPercent >= 0 && cursorLngPercent <= 100 && (
                   <div style={{
                     position: 'absolute',
-                    top: -8,
-                    left: `${((currentLng - 2.30) / (2.40 - 2.30)) * 100}%`,
-                    width: 16,
-                    height: 16,
-                    background: 'red',
-                    border: '2px solid white',
+                    top: -12,
+                    left: `${cursorLngPercent}%`,
+                    width: 20,
+                    height: 20,
+                    background: '#3498db',
+                    border: '3px solid white',
                     borderRadius: '50%',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                    transform: 'translateX(-50%)'
+                    boxShadow: '0 2px 12px rgba(52, 152, 219, 0.8)',
+                    transform: 'translateX(-50%)',
+                    zIndex: 10
                   }} />
                 )}
               </div>
             </div>
           </div>
           
-          {coords && (
-            <div style={{ marginTop: 16, marginBottom: 8, textAlign: 'center' }}>
-              <span style={{ color: 'green', fontSize: 16 }}>Coordonnées : <b>{coords}</b></span>
+          {/* Affichage des coordonnées du curseur */}
+          {mouseCoords && (
+            <div style={{ marginTop: 12, textAlign: 'center' }}>
+              <span style={{ color: '#3498db', fontSize: 13 }}>
+                Curseur : {mouseCoords.lat.toFixed(5)}° | {mouseCoords.lng.toFixed(5)}°
+              </span>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            {coords && (
+          
+          {/* Validation des coordonnées */}
+          {coords && !coordsValidated && (
+            <div style={{ marginTop: 16, marginBottom: 12, textAlign: 'center' }}>
+              <div style={{ 
+                background: '#ecf0f1', 
+                padding: '12px 20px', 
+                borderRadius: 8, 
+                marginBottom: 12,
+                border: '2px solid #bdc3c7'
+              }}>
+                <span style={{ color: '#2c3e50', fontSize: 15, fontWeight: 'bold' }}>
+                  Point placé : {coords.lat.toFixed(5)}° | {coords.lng.toFixed(5)}°
+                </span>
+              </div>
               <button 
                 onClick={() => {
                   debugAeroport('Coordinates validated', { coords, roomId, playerName });
-                  alert('Coordonnées validées ! Vous pouvez maintenant passer à la salle suivante.');
+                  setCoordsValidated(true);
                   setPopup(null);
                 }} 
                 style={{ 
-                  backgroundColor: '#28a745',
+                  backgroundColor: '#27ae60',
                   color: 'white',
-                  padding: '8px 16px',
-                  fontWeight: 'bold'
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(39, 174, 96, 0.4)',
+                  transition: 'all 0.3s ease'
                 }}
               >
-                Valider les coordonnées
+                ✓ Valider ces coordonnées
               </button>
-            )}
+            </div>
+          )}
+          
+          {coordsValidated && (
+            <div style={{ 
+              marginTop: 20, 
+              padding: '16px', 
+              background: '#d4edda', 
+              border: '2px solid #28a745',
+              borderRadius: 8,
+              textAlign: 'center'
+            }}>
+              <span style={{ color: '#155724', fontSize: 16, fontWeight: 'bold' }}>
+                ✓ Coordonnées validées ! Vous pouvez passer à la salle suivante.
+              </span>
+            </div>
+          )}
+          
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
             <button onClick={() => {
               debugUI('Map popup closed');
               setPopup(null);
@@ -547,12 +629,10 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
     return null;
   };
 
-  // Si DesktopGame est activé, afficher DesktopGame
   if (showDesktopGame) {
     return <DesktopGameEmbed roomId={roomId} playerName={playerName} onBack={() => setShowDesktopGame(false)} />;
   }
 
-  // Si officeGame est activé, afficher officeGame
   if (showOfficeGame) {
     return <OfficeGameEmbed roomId={roomId} playerName={playerName} onBack={() => setShowOfficeGame(false)} onDesktop={() => setShowDesktopGame(true)} />;
   }
@@ -578,9 +658,6 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
           flexDirection: 'column',
           justifyContent: 'flex-start',
           background: 'transparent',
-          borderTopRightRadius: 0,
-          borderBottomRightRadius: 0,
-          boxShadow: 'none',
         }}
       >
         <h2>🎮 ESCAPE TECH - Mission IA Dysfonctionnelle</h2>
@@ -591,10 +668,26 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
           Coopération obligatoire - 2 joueurs requis pour cette mission
         </p>
         
-        <div style={{ margin: '32px 0' }}>
-          <span style={{ color: '#888' }}></span>
-        </div>
-        {coords && <button onClick={onNext} style={{ marginTop: 32 }}>Passer à la salle suivante</button>}
+        {coordsValidated && (
+          <button 
+            onClick={() => setShowOfficeGame(true)}  
+            style={{ 
+              marginTop: 32,
+              padding: '16px 32px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 12,
+              cursor: 'pointer',
+              boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            ➤ Passer à la salle suivante
+          </button>
+        )}
       </div>
 
       <div
@@ -648,7 +741,6 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
           </button>
         </div>
 
-        {/* Bouton pour passer à officeGame */}
         <div style={{ marginTop: '16px', width: '100%' }}>
           <button 
             onClick={() => setShowOfficeGame(true)} 
@@ -730,7 +822,6 @@ const popupStyle = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  animation: 'popupSlideIn 0.3s ease-out',
 };
 
 export default AeroportGame;
