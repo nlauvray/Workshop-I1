@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { imageUrl } from '../config';
+import WalkieTalkieGlobal from './WalkieTalkieGlobal';
+import { WalkieTalkieProvider } from '../contexts/WalkieTalkieContext';
 
 const BG_URL = imageUrl('/images/assets/bureauSalle2.png');
 const ICONS = {
@@ -15,9 +17,9 @@ const ICONS = {
 };
 
 const SAFE_PIN = '4227';
-const audioFinSalle2 = {secure : [{ src: '/assets/FinSalle2.mp3', title: 'Fin Salle 2', speaker: 'Fin' }]};
+const audioFinSalle2 = imageUrl('/images/assets/FinSalle2.mp3');
 
-const OfficeGameEmbed = ({ roomId, playerName, onBack, onDesktop }) => {
+const OfficeGameEmbedContent = ({ roomId, playerName, onBack, onDesktop, onAeroport }) => {
   const navigate = useNavigate();
   const playerNameValue = playerName || (typeof window !== 'undefined'
     ? (localStorage.getItem('playerName') || 'Joueur')
@@ -28,11 +30,27 @@ const OfficeGameEmbed = ({ roomId, playerName, onBack, onDesktop }) => {
       session={{ mode: 'create', code: roomId || '', pseudo: playerNameValue }}
       onNext={onBack || (() => navigate('/'))}
       onDesktop={onDesktop || (() => navigate('/'))}
+      onAeroport={onAeroport}
     />
   );
 };
 
-const Salle2Createur = ({ session, onNext, onDesktop }) => {
+const OfficeGameEmbed = ({ roomId, playerName, onBack, onDesktop, onAeroport }) => {
+  return (
+    <WalkieTalkieProvider>
+      <OfficeGameEmbedContent 
+        roomId={roomId} 
+        playerName={playerName} 
+        onBack={onBack} 
+        onDesktop={onDesktop} 
+        onAeroport={onAeroport} 
+      />
+      <WalkieTalkieGlobal />
+    </WalkieTalkieProvider>
+  );
+};
+
+const Salle2Createur = ({ session, onNext, onDesktop, onAeroport }) => {
   const [popup, setPopup] = useState(null); // null | 'j1' | 'j2' | 'book' | 'page' | 'coffre' | 'carte'
   const [hintFound, setHintFound] = useState(false);
   const [encryptedSeen, setEncryptedSeen] = useState(false);
@@ -92,6 +110,25 @@ const Salle2Createur = ({ session, onNext, onDesktop }) => {
       <div style={{ position: 'absolute', top: 8, left: 12, color: '#fff', textShadow: '0 1px 2px #000' }}>
         <h2 style={{ margin: 0 }}>Salle 2 : Le Créateur</h2>
         <small>Session : {session.mode === 'create' ? 'Créateur' : 'Participant'} | Code : {session.code || '(local)'} | Pseudo : {session.pseudo}</small>
+      </div>
+
+      <div style={{ position: 'absolute', top: 8, right: 12, display: 'flex', gap: 8 }}>
+        {onAeroport && (
+          <button 
+            onClick={onAeroport}
+            style={{
+              padding: '8px 16px',
+              background: 'rgba(59, 130, 246, 0.8)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            ✈️ Aéroport
+          </button>
+        )}
       </div>
 
       <div style={{ position: 'absolute', top: 8, right: 12, display: 'flex', gap: 8 }}>

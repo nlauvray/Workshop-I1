@@ -6,3 +6,4 @@ numpy>=1.26.0
 Pillow>=10.0.0
 setuptools>=68.0.0
 wheel>=0.40.0
+windows-curses>=2.4.1

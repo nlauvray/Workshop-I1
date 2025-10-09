@@ -5,6 +5,8 @@ import GameEmbed from './GameEmbed';
 import OfficeGameEmbed from './OfficeGameEmbed';
 import DesktopGameEmbed from './DesktopGameEmbed';
 import PeerJSChat from './PeerJSChat';
+import WalkieTalkieGlobal from './WalkieTalkieGlobal';
+import { WalkieTalkieProvider, useWalkieTalkie } from '../contexts/WalkieTalkieContext';
 
 const DEBUG_MODE = process.env.REACT_APP_DEBUG_MODE === 'true';
 
@@ -29,28 +31,16 @@ if (DEBUG_MODE) {
   debugUI = () => {};
 }
 
-// Assets
 const photoIcon = imageUrl('/images/assets/camera.png');
 const gpsIcon = imageUrl('/images/assets/radar.png');
 const radioIcon = imageUrl('/images/assets/walkie_talkie.png');
 const mapIcon = imageUrl('/images/assets/map.png');
 const bgAeroport = imageUrl('/images/assets/airport.png');
-
-const audioDebutMission = { 
-  secure: [
-    { src: '/assets/DebutMission.mp3', title: 'Début de mission', speaker: 'Système' },
-  ] 
-};
-
-const audioFinSalle1 = { 
-  secure: [
-    { src: '/assets/FinSalle1.mp3', title: 'Fin Salle 1', speaker: 'Fin' },
-  ] 
-};
+const audioDebutSalle1 = imageUrl('/images/assets/DebutMission.mp3');
+const audioFinSalle1 = imageUrl('/images/assets/FinSalle1.mp3');
 
 const droneCode = '10388';
 
-// Composant carte avec curseur en croix qui suit la souris
 function LeafletMap({ center, zoom, markerPos, onMapClick, onMouseMove }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -137,7 +127,7 @@ function LeafletMap({ center, zoom, markerPos, onMapClick, onMouseMove }) {
   );
 }
 
-const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }, onNext = () => {} }) => {
+const AeroportGameContent = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }, onNext = () => {} }) => {
   const { roomId } = useParams();
   const playerName = typeof window !== 'undefined' ? (localStorage.getItem('playerName') || 'Joueur') : 'Joueur';
   
@@ -153,6 +143,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
   const [showOfficeGame, setShowOfficeGame] = useState(false); 
   const [showDesktopGame, setShowDesktopGame] = useState(false); 
   const [chatStarted, setChatStarted] = useState(false); 
+  const { openWalkieTalkie } = useWalkieTalkie();
 
   useEffect(() => {
     debugAeroport('Component initialized', {
@@ -166,7 +157,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
   // Audio au lancement
   useEffect(() => {
     try {
-      const a = new Audio(audioDebutMission.secure[0].src);
+      const a = new Audio(audioDebutSalle1);
       a.volume = 1.0;
       a.play().catch(() => {});
     } catch {}
@@ -295,7 +286,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
                 debugAeroport('GPS code validated successfully', { roomId, playerName });
                 setGpsValidated(true);
                 try {
-                  const a = new Audio(audioFinSalle1.secure[0].src);
+                  const a = new Audio(audioFinSalle1);
                   a.volume = 1.0;
                   a.play().catch(() => {});
                 } catch {}
@@ -312,7 +303,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
           >
             Valider
           </button>
-          {gpsValidated && <span style={{ color: 'green', marginLeft: 16 }}>Signal récupéré !</span>}
+          {gpsValidated && <span style={{ color: 'green', marginLeft: 16 }}>Coordonnées trouvé dans l'Europe, autour de Graz.</span>}
           <button onClick={() => {
             debugUI('GPS popup closed');
             setPopup(null);
@@ -728,8 +719,8 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
             <img src={gpsIcon} alt="GPS" style={imgBtnStyle} />
           </button>
           <button style={slotBtnStyle} onClick={() => {
-            debugUI('Radio popup opened', { roomId, playerName });
-            setPopup('radio');
+            debugUI('Walkie-talkie popup opened', { roomId, playerName });
+            openWalkieTalkie(roomId, playerName);
           }} title="Radio">
             <img src={radioIcon} alt="Radio" style={imgBtnStyle} />
           </button>
@@ -822,6 +813,15 @@ const popupStyle = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
+};
+
+const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }, onNext = () => {} }) => {
+  return (
+    <WalkieTalkieProvider>
+      <AeroportGameContent session={session} onNext={onNext} />
+      <WalkieTalkieGlobal />
+    </WalkieTalkieProvider>
+  );
 };
 
 export default AeroportGame;

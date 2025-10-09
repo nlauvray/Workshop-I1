@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { imageUrl } from '../config';
+import WalkieTalkieGlobal from './WalkieTalkieGlobal';
+import { WalkieTalkieProvider } from '../contexts/WalkieTalkieContext';
 
-function DesktopGameEmbed({ roomId, playerName, onBack }) {
+function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [isConnected, setIsConnected] = useState(true);
   const [folderOpen, setFolderOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -36,18 +38,13 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
     { id: 'secured', type: 'folder_secured', name: 'Données sécurisées' },
   ];
 
-  const audioVoc = {
+  const audioMap = {
     secured: [
-      { src: '/assets/Organisation1.mp3', title: 'Organisation 1', speaker: 'Organisation' },
-      { src: '/assets/Organisation2.mp3', title: 'Organisation 2', speaker: 'Organisation' },
-      { src: '/assets/Organisation3.mp3', title: 'Organisation 3', speaker: 'Organisation' },
-      { src: '/assets/Organisation4.mp3', title: 'Organisation 4', speaker: 'Organisation' },
-    ],
-  };
-  
-   const audioMap = {
-    secured: [
-      { src: '/assets/FinMission.mp3', title: 'Fin de mission', speaker: 'Système' },
+      { src: imageUrl('/static/assets/OrganisationMessage1.mp3'), title: 'Organisation 1', speaker: 'Organisation' },
+      { src: imageUrl('/static/assets/OrganisationMessage2.mp3'), title: 'Organisation 2', speaker: 'Organisation' },
+      { src: imageUrl('/static/assets/OrganisationMessage3.mp3'), title: 'Organisation 3', speaker: 'Organisation' },
+      { src: imageUrl('/static/assets/OrganisationMessage4.mp3'), title: 'Organisation 4', speaker: 'Organisation' },
+      { src: imageUrl('/static/assets/FinMission.mp3'), title: 'Fin de mission', speaker: 'Système' },
     ],
   };
 
@@ -559,6 +556,19 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function DesktopGameEmbed({ roomId, playerName, onBack }) {
+  return (
+    <WalkieTalkieProvider>
+      <DesktopGameEmbedContent 
+        roomId={roomId} 
+        playerName={playerName} 
+        onBack={onBack} 
+      />
+      <WalkieTalkieGlobal />
+    </WalkieTalkieProvider>
   );
 }
 
