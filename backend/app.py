@@ -105,6 +105,13 @@ class GameRoom:
             "current_player": 1,
             "game_started": False
         }
+        # État d'alarme persistant par salle
+        self.alarm_state = {
+            "active": False,
+            "remaining": 60,
+            "start_time": None,
+            "timer_task": None
+        }
         self.images = self.load_images()   
     
     def load_images(self):
@@ -335,6 +342,45 @@ class GameRoom:
                     "error": str(e),
                     "message_type": message.get("type")
                 })
+    
+    async def start_alarm_timer(self):
+        """Démarre le timer d'alarme de 60 secondes"""
+        if self.alarm_state["timer_task"]:
+            self.alarm_state["timer_task"].cancel()
+        
+        self.alarm_state["active"] = True
+        self.alarm_state["remaining"] = 60
+        self.alarm_state["start_time"] = datetime.now()
+        
+        async def countdown():
+            for remaining in range(60, 0, -1):
+                self.alarm_state["remaining"] = remaining
+                await asyncio.sleep(1)
+            
+            # Temps écoulé - déclencher l'écran bleu
+            self.alarm_state["active"] = False
+            await self.broadcast_to_room({
+                "type": "alarm_timeout",
+                "message": "Temps écoulé - système compromis"
+            })
+        
+        self.alarm_state["timer_task"] = asyncio.create_task(countdown())
+        debug_websocket("Alarm timer started", {
+            "room_id": self.room_id,
+            "remaining": 60
+        })
+    
+    async def stop_alarm_timer(self):
+        """Arrête le timer d'alarme"""
+        if self.alarm_state["timer_task"]:
+            self.alarm_state["timer_task"].cancel()
+            self.alarm_state["timer_task"] = None
+        
+        self.alarm_state["active"] = False
+        self.alarm_state["remaining"] = 60
+        debug_websocket("Alarm timer stopped", {
+            "room_id": self.room_id
+        })
 
 @app.get("/")
 async def root():
@@ -435,8 +481,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
     # Si c'est le premier joueur
     if len(room.players) == 1 and not room.first_assigned and not room.secret_assigned:
-        # Solo: toujours visible. Multi: attribution aléatoire comme avant
-        room.can_see_drone[player_id] = True if getattr(room, 'solo', False) else bool(random.getrandbits(1))
+        # Toujours visible pour tous les joueurs (suppression du random)
+        room.can_see_drone[player_id] = True
         room.first_assigned = True
         debug_aeroport("First player drone visibility assigned", {
             "player_id": player_id,
@@ -444,23 +490,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
             "solo_mode": getattr(room, 'solo', False)
         })
 
-    # Lorsque 2 joueurs sont présents: garantir qu'au moins un voit le drone
+    # Lorsque 2 joueurs sont présents: tous les joueurs peuvent voir le drone
     if len(room.players) == 2 and not room.secret_assigned:
-        # Si le premier a déjà une attribution, donner l'opposé au second
-        if 1 in room.can_see_drone and 2 not in room.can_see_drone:
-            room.can_see_drone[2] = not room.can_see_drone[1]
-        elif 2 in room.can_see_drone and 1 not in room.can_see_drone:
-            room.can_see_drone[1] = not room.can_see_drone[2]
-        else:
-            # Sinon choisir aléatoirement exactement un voyant
-            chosen = random.choice([1, 2])
-            room.can_see_drone[chosen] = True
-            room.can_see_drone[1 if chosen == 2 else 2] = False
+        # Tous les joueurs peuvent maintenant voir le drone (suppression du random)
+        room.can_see_drone[1] = True
+        room.can_see_drone[2] = True
         room.secret_assigned = True
         debug_aeroport("Second player drone visibility assigned", {
             "player1_can_see": room.can_see_drone.get(1, False),
-            "player2_can_see": room.can_see_drone.get(2, False),
-            "chosen_player": chosen if 'chosen' in locals() else None
+            "player2_can_see": room.can_see_drone.get(2, False)
         })
     
     try:
@@ -529,7 +567,52 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         continue
                     room.player_names[player_id] = desired
                     await websocket.send_text(json.dumps({"type": "name_status", "ok": True, "name": desired}))
-                # Desktop has no other server logic for now
+                elif command.get("type") == "get_alarm_state":
+                    # Envoyer l'état actuel de l'alarme au client
+                    debug_websocket("Alarm state requested (desktop)", {
+                        "player_id": player_id,
+                        "room_id": room_id,
+                        "current_alarm_state": room.alarm_state
+                    })
+                    
+                    await websocket.send_text(json.dumps({
+                        "type": "alarm_state",
+                        "active": room.alarm_state["active"],
+                        "remaining": room.alarm_state["remaining"]
+                    }))
+                elif command.get("type") == "trigger_alarm":
+                    # Déclencher l'alarme pour tous les joueurs de la salle
+                    debug_websocket("Global alarm triggered (desktop)", {
+                        "player_id": player_id,
+                        "room_id": room_id,
+                        "alarm_type": command.get("alarm_type", "audio_5")
+                    })
+                    
+                    # Démarrer le timer d'alarme côté serveur
+                    await room.start_alarm_timer()
+                    
+                    await room.broadcast_to_room({
+                        "type": "global_alarm",
+                        "triggered_by": player_id,
+                        "alarm_type": command.get("alarm_type", "audio_5"),
+                        "message": "Alerte système activée par un joueur"
+                    })
+                elif command.get("type") == "stop_alarm":
+                    # Arrêter l'alarme pour tous les joueurs de la salle
+                    debug_websocket("Global alarm stopped (desktop)", {
+                        "player_id": player_id,
+                        "room_id": room_id,
+                        "stopped_by": command.get("stopped_by", "Unknown")
+                    })
+                    
+                    # Arrêter le timer d'alarme côté serveur
+                    await room.stop_alarm_timer()
+                    
+                    await room.broadcast_to_room({
+                        "type": "global_alarm_stop",
+                        "stopped_by": command.get("stopped_by", "Unknown"),
+                        "message": "Alerte système désactivée par un joueur"
+                    })
                 continue
 
             if command["type"] == "move":
@@ -643,6 +726,55 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "current_player": room.game_state["current_player"]
                 })
             
+            elif command["type"] == "get_alarm_state":
+                # Envoyer l'état actuel de l'alarme au client
+                debug_websocket("Alarm state requested", {
+                    "player_id": player_id,
+                    "room_id": room_id,
+                    "current_alarm_state": room.alarm_state
+                })
+                
+                await websocket.send_text(json.dumps({
+                    "type": "alarm_state",
+                    "active": room.alarm_state["active"],
+                    "remaining": room.alarm_state["remaining"]
+                }))
+            
+            elif command["type"] == "trigger_alarm":
+                # Déclencher l'alarme pour tous les joueurs de la salle
+                debug_websocket("Global alarm triggered", {
+                    "player_id": player_id,
+                    "room_id": room_id,
+                    "alarm_type": command.get("alarm_type", "audio_5")
+                })
+                
+                # Démarrer le timer d'alarme côté serveur
+                await room.start_alarm_timer()
+                
+                await room.broadcast_to_room({
+                    "type": "global_alarm",
+                    "triggered_by": player_id,
+                    "alarm_type": command.get("alarm_type", "audio_5"),
+                    "message": "Alerte système activée par un joueur"
+                })
+            
+            elif command["type"] == "stop_alarm":
+                # Arrêter l'alarme pour tous les joueurs de la salle
+                debug_websocket("Global alarm stopped", {
+                    "player_id": player_id,
+                    "room_id": room_id,
+                    "stopped_by": command.get("stopped_by", "Unknown")
+                })
+                
+                # Arrêter le timer d'alarme côté serveur
+                await room.stop_alarm_timer()
+                
+                await room.broadcast_to_room({
+                    "type": "global_alarm_stop",
+                    "stopped_by": command.get("stopped_by", "Unknown"),
+                    "message": "Alerte système désactivée par un joueur"
+                })
+            
     except WebSocketDisconnect:
         debug_websocket("WebSocket disconnected", {
             "player_id": player_id,
@@ -663,6 +795,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 await asyncio.sleep(30)  # Attendre 30 secondes
                 if room_id in game_rooms and len(game_rooms[room_id].players) == 0:
                     debug_websocket("Room deleted after delay - no players reconnected", {"room_id": room_id})
+                    # Nettoyer les tâches d'alarme avant de supprimer la salle
+                    if room_id in game_rooms and game_rooms[room_id].alarm_state["timer_task"]:
+                        game_rooms[room_id].alarm_state["timer_task"].cancel()
                     del game_rooms[room_id]
                     if room_id in room_deletion_tasks:
                         del room_deletion_tasks[room_id]
@@ -690,6 +825,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 await asyncio.sleep(30)  # Attendre 30 secondes
                 if room_id in game_rooms and len(game_rooms[room_id].players) == 0:
                     debug_websocket("Room deleted after delay due to error - no players reconnected", {"room_id": room_id})
+                    # Nettoyer les tâches d'alarme avant de supprimer la salle
+                    if room_id in game_rooms and game_rooms[room_id].alarm_state["timer_task"]:
+                        game_rooms[room_id].alarm_state["timer_task"].cancel()
                     del game_rooms[room_id]
                     if room_id in room_deletion_tasks:
                         del room_deletion_tasks[room_id]

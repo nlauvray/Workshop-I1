@@ -288,48 +288,54 @@ const AeroportGameContent = ({ session = { mode: 'create', code: '', pseudo: 'Jo
     if (popup === 'gps') {
       return (
         <div className="popup-obj" style={popupStyle}>
-          <h3 style={textStyle}>Appareil GPS</h3>
+          <h3 style={{...textStyle, marginBottom: '20px'}}>Appareil GPS</h3>
           <input
             placeholder="Entrer le code du drone"
             value={codeEntered}
             onChange={(e) => setCodeEntered(e.target.value)}
             disabled={gpsValidated}
+            style={{ 
+              padding: '12px 16px',
+              fontSize: '16px',
+              border: '2px solid #ddd',
+              borderRadius: '8px',
+              width: '100%',
+              marginBottom: '16px',
+              boxSizing: 'border-box'
+            }}
           />
-          <button
-            onClick={() => { 
-              debugAeroport('GPS code validation attempt', { 
-                codeEntered, 
-                droneCode, 
-                isValid: codeEntered === droneCode,
-                roomId,
-                playerName
-              });
-              if (codeEntered === droneCode) {
-                debugAeroport('GPS code validated successfully', { roomId, playerName });
-                setGpsValidated(true);
-                try {
-                  const a = new Audio(audioFinSalle1);
-                  a.volume = 1.0;
-                  a.play().catch(() => {});
-                } catch {}
-              } else {
-                debugAeroport('GPS code validation failed', { 
-                  entered: codeEntered, 
-                  expected: droneCode,
+          <div style={{ marginTop: '20px' }}>
+            <button
+              onClick={() => { 
+                debugAeroport('GPS code validation attempt', { 
+                  codeEntered, 
+                  droneCode, 
+                  isValid: codeEntered === droneCode,
                   roomId,
                   playerName
                 });
-              }
-            }}
-            disabled={gpsValidated || !photoTaken || !codeEntered}
-          >
-            Valider
-          </button>
-          {gpsValidated && <span style={{ color: 'green', marginLeft: 16 }}>Coordonnées trouvé dans l'Europe, autour de Graz.</span>}
-          <button onClick={() => {
-            debugUI('GPS popup closed');
-            setPopup(null);
-          }} style={{ marginLeft: 8 }}>Fermer</button>
+                if (codeEntered === droneCode) {
+                  debugAeroport('GPS code validated successfully', { roomId, playerName });
+                  setGpsValidated(true);
+                } else {
+                  debugAeroport('GPS code validation failed', { 
+                    entered: codeEntered, 
+                    expected: droneCode,
+                    roomId,
+                    playerName
+                  });
+                }
+              }}
+              disabled={gpsValidated || !photoTaken || !codeEntered}
+            >
+              Valider
+            </button>
+            <button onClick={() => {
+              debugUI('GPS popup closed');
+              setPopup(null);
+            }} style={{ marginLeft: '20px' }}>Fermer</button>
+          </div>
+          {gpsValidated && <span style={{ color: 'green', marginLeft: 16 }}>Coordonnées trouvé dans l'Europe, autour de Graz. A******E</span>}
         </div>
       );
     }

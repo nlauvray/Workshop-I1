@@ -5,6 +5,7 @@ import { WalkieTalkieProvider } from '../contexts/WalkieTalkieContext';
 
 function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [isConnected, setIsConnected] = useState(true);
+  const [wsConnection, setWsConnection] = useState(null);
   const [folderOpen, setFolderOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [usbOpen, setUsbOpen] = useState(false);
@@ -50,6 +51,62 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [slotMachineCompleted, setSlotMachineCompleted] = useState(false);
   const [showBSOD, setShowBSOD] = useState(false);
   const [showGameOver, setShowGameOver] = useState(false);
+
+  // Connexion WebSocket pour les alarmes globales
+  useEffect(() => {
+    if (!roomId) return;
+    
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'ws://localhost:8000';
+    const ws = new WebSocket(`${backendUrl}/ws/${roomId}`);
+    
+    ws.onopen = () => {
+      setWsConnection(ws);
+      ws.send(JSON.stringify({ type: "set_name", name: playerName }));
+      ws.send(JSON.stringify({ type: "get_alarm_state" })); // <-- clé
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === "alarm_state") {
+        const active = !!msg.active;
+        setAlertActive(active);
+        setAlertTime(Number.isFinite(msg.remaining) ? msg.remaining : 60);
+        setSlotMachineOpen(active);
+        if (!active) {
+          setShowBSOD(false); setShowGameOver(false);
+          if (alarmAudio) { alarmAudio.pause(); alarmAudio.currentTime = 0; }
+        }
+        return;
+      }
+
+      if (msg.type === "global_alarm") { 
+        setAlertActive(true); 
+        setAlertTime(60); 
+        // La machine à sous s'ouvrira automatiquement via le useEffect après 2 secondes
+        return; 
+      }
+      if (msg.type === "global_alarm_stop") {
+        setAlertActive(false); setAlertTime(60); setSlotMachineOpen(false); setSlotMachineCompleted(false);
+        setShowBSOD(false); setShowGameOver(false);
+        if (alarmAudio) { alarmAudio.pause(); alarmAudio.currentTime = 0; }
+        return;
+      }
+    };
+    
+    ws.onclose = () => {
+      console.log('WebSocket déconnecté');
+      setWsConnection(null);
+    };
+    
+    ws.onerror = (error) => {
+      console.error('Erreur WebSocket:', error);
+    };
+    
+    return () => {
+      ws.close();
+    };
+  }, [roomId, playerName]);
 
   const usbItems = [
     { id: 'email1', type: 'file', name: 'Email 1' },
@@ -102,6 +159,16 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
                 onPlay={() => {
                   if (v.isAlarmTrigger) {
                     setAlertActive(true);
+                    
+                    // Envoyer la commande d'alarme au serveur pour tous les joueurs
+                    if (wsConnection) {
+                      wsConnection.send(JSON.stringify({
+                        type: "trigger_alarm",
+                        alarm_type: "audio_5",
+                        triggered_by: playerName
+                      }));
+                      console.log('Commande d\'alarme envoyée au serveur');
+                    }
                   }
                 }}
                 onEnded={() => {
@@ -161,6 +228,10 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
       setAlertTime(60);
       setSlotMachineCompleted(false);
       setSlotMachineOpen(false);
+      
+      // Réinitialiser les états d'écran bleu
+      setShowBSOD(false);
+      setShowGameOver(false);
     }
   }, [slotMachineCompleted, alertActive]);
 
@@ -212,6 +283,15 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
         
         if (isCorrect) {
           setSlotMachineCompleted(true);
+          
+          // Envoyer la commande d'arrêt d'alarme au serveur pour tous les joueurs
+          if (wsConnection) {
+            wsConnection.send(JSON.stringify({
+              type: "stop_alarm",
+              stopped_by: playerName
+            }));
+            console.log('Commande d\'arrêt d\'alarme envoyée au serveur');
+          }
         } else {
           // Réinitialiser toutes les colonnes si le mot n'est pas STOP
           setTimeout(() => {
