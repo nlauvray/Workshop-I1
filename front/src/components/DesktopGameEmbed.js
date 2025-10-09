@@ -1010,10 +1010,32 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
                 <div style={{ marginLeft: 10, fontSize: 12, fontWeight: 700, color: 'white' }}>Corbeille</div>
               </div>
               <div style={{ padding: 16, height: 'calc(100% - 34px)', overflowY: 'auto' }}>
-                <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                  <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
-                  <div style={{ fontSize: 16, color: '#666' }}>La corbeille est vide</div>
+                {/* Audio secret dans la corbeille - en haut */}
+                <div style={{ 
+                  background: '#fff3cd', 
+                  border: '1px solid #ffeaa7', 
+                  borderRadius: 8, 
+                  padding: 12, 
+                  marginBottom: 16,
+                  borderLeft: '4px solid #f39c12'
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#856404' }}>
+                    🎵 Fichier audio secret
+                  </div>
+                  <div style={{ fontSize: 12, color: '#856404', marginBottom: 8 }}>
+                    Fichier audio récupéré dans la corbeille...
+                  </div>
+                  <audio 
+                    controls 
+                    preload="none" 
+                    style={{ width: '100%' }}
+                    title="SECRET-FILES.mp3"
+                  >
+                    <source src={imageUrl('/images/assets/SECRET-FILES.mp3')} type="audio/mpeg" />
+                    Votre navigateur ne supporte pas l'élément audio.
+                  </audio>
                 </div>
+
                 <div style={{ background: '#f9f9f9', borderRadius: 8, padding: 12, border: '1px solid #ddd' }}>
                   <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>📁 Fichiers récemment supprimés</div>
                   <div style={{ fontSize: 12, color: '#666' }}>
