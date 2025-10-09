@@ -110,6 +110,13 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       return;
     }
 
+    // Nettoyer l'ancien peer avant d'en créer un nouveau
+    if (peerRef.current) {
+      debugChat('Cleaning up existing peer before re-initialization');
+      peerRef.current.destroy();
+      peerRef.current = null;
+    }
+
     debugChat('Initializing PeerJS connection', { 
       roomId, 
       playerName,
@@ -229,52 +236,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         if (!isReconnecting) {
           setError('Connexion perdue - tentative de reconnexion...');
           debugChat('Showing reconnection message to user');
-        }
-        
-        // Attempt to reconnect with exponential backoff
-        if (retryCount < 3 && peerRef.current && !peerRef.current.destroyed) {
           setIsReconnecting(true);
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Max 5 seconds
-          
-          debugChat('Scheduling automatic reconnection', { 
-            retryCount: retryCount, 
-            delay: delay,
-            maxRetries: 3,
-            exponentialBackoff: true
-          });
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            try {
-              debugChat('Executing reconnection attempt', {
-                retryCount: retryCount + 1,
-                peerDestroyed: peerRef.current?.destroyed
-              });
-              peerRef.current.reconnect();
-              setRetryCount(prev => prev + 1);
-            } catch (err) {
-              debugChat('Reconnection attempt failed', {
-                error: err.message,
-                errorType: err.type,
-                retryCount: retryCount
-              });
-              setError('Échec de la reconnexion');
-              setIsReconnecting(false);
-            }
-          }, delay);
-        } else if (retryCount >= 3) {
-          debugChat('Maximum reconnection attempts reached', {
-            retryCount: retryCount,
-            maxRetries: 3,
-            finalState: 'failed'
-          });
-          setError('Connexion impossible - trop de tentatives échouées');
-          setIsReconnecting(false);
-        } else {
-          debugChat('Cannot reconnect - peer destroyed or invalid', {
-            peerExists: !!peerRef.current,
-            peerDestroyed: peerRef.current?.destroyed,
-            retryCount: retryCount
-          });
         }
       });
 
@@ -384,7 +346,61 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
         remoteAudioRef.current.srcObject = null;
       }
     };
-  }, [roomId, playerName, DEBUG_MODE, debugChat, retryCount, isReconnecting]);
+  }, [roomId, playerName, DEBUG_MODE, debugChat]);
+
+  // Separate useEffect for reconnection logic to avoid infinite loops
+  useEffect(() => {
+    if (!isReconnecting || !peerRef.current) return;
+
+    const handleReconnection = () => {
+      if (retryCount < 3 && peerRef.current && !peerRef.current.destroyed) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Max 5 seconds
+        
+        debugChat('Scheduling automatic reconnection', { 
+          retryCount: retryCount, 
+          delay: delay,
+          maxRetries: 3,
+          exponentialBackoff: true
+        });
+        
+        reconnectTimeoutRef.current = setTimeout(() => {
+          try {
+            debugChat('Executing reconnection attempt', {
+              retryCount: retryCount + 1,
+              peerDestroyed: peerRef.current?.destroyed
+            });
+            peerRef.current.reconnect();
+            setRetryCount(prev => prev + 1);
+          } catch (err) {
+            debugChat('Reconnection attempt failed', {
+              error: err.message,
+              errorType: err.type,
+              retryCount: retryCount
+            });
+            setError('Échec de la reconnexion');
+            setIsReconnecting(false);
+          }
+        }, delay);
+      } else if (retryCount >= 3) {
+        debugChat('Maximum reconnection attempts reached', {
+          retryCount: retryCount,
+          maxRetries: 3,
+          finalState: 'failed'
+        });
+        setError('Connexion impossible - trop de tentatives échouées');
+        setIsReconnecting(false);
+      }
+    };
+
+    handleReconnection();
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+    };
+  }, [isReconnecting, retryCount, debugChat]);
 
   // Connect to another peer
   const connectToPeer = () => {
@@ -735,6 +751,8 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
     setError('');
     setRetryCount(0);
     setIsReconnecting(false);
+    setIsConnected(false);
+    setConnectionStatus('disconnected');
     
     if (reconnectTimeoutRef.current) {
       debugChat('Clearing existing reconnection timeout for manual reconnect');
@@ -742,28 +760,19 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       reconnectTimeoutRef.current = null;
     }
     
-    if (peerRef.current && !peerRef.current.destroyed) {
-      try {
-        debugChat('Executing manual reconnection', {
-          peerId: peerRef.current.id,
-          peerDestroyed: peerRef.current.destroyed
-        });
-        peerRef.current.reconnect();
-      } catch (err) {
-        debugChat('Manual reconnection execution failed', {
-          error: err.message,
-          errorType: err.type,
-          peerExists: !!peerRef.current
-        });
-        setError('Échec de la reconnexion manuelle');
-      }
-    } else {
-      debugChat('Manual reconnection failed - peer not available', {
-        peerExists: !!peerRef.current,
-        peerDestroyed: peerRef.current?.destroyed
+    // Force destroy existing peer and recreate
+    if (peerRef.current) {
+      debugChat('Destroying existing peer for manual reconnection', {
+        peerId: peerRef.current.id,
+        peerDestroyed: peerRef.current.destroyed
       });
-      setError('PeerJS non initialisé - redémarrez le chat');
+      peerRef.current.destroy();
+      peerRef.current = null;
     }
+    
+    // Force re-initialization by triggering a state change
+    debugChat('Triggering peer re-initialization for manual reconnect');
+    setPeerId(''); // This will trigger the useEffect to reinitialize
   };
 
   return (
@@ -834,9 +843,25 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
           borderRadius: '4px',
           fontSize: '12px',
           width: '100%',
-          textAlign: 'center'
+          textAlign: 'center',
+          marginBottom: '8px'
         }}>
           {error}
+          <button
+            onClick={manualReconnect}
+            style={{
+              marginLeft: '8px',
+              padding: '4px 8px',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '3px',
+              cursor: 'pointer',
+              fontSize: '10px'
+            }}
+          >
+            🔄 Réessayer
+          </button>
         </div>
       )}
 
@@ -917,7 +942,7 @@ const PeerJSChat = memo(({ roomId, playerName }) => {
       )}
 
    
-      {!isConnected && !isReconnecting && (
+      {(!isConnected || error) && !isReconnecting && (
         <button
           onClick={manualReconnect}
           style={{
@@ -993,4 +1018,3 @@ PeerJSChat.defaultProps = {
 };
 
 export default PeerJSChat;
-

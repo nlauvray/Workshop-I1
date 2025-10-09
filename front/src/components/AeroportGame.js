@@ -5,6 +5,8 @@ import GameEmbed from './GameEmbed';
 import OfficeGameEmbed from './OfficeGameEmbed';
 import DesktopGameEmbed from './DesktopGameEmbed';
 import PeerJSChat from './PeerJSChat';
+import WalkieTalkieGlobal from './WalkieTalkieGlobal';
+import { WalkieTalkieProvider, useWalkieTalkie } from '../contexts/WalkieTalkieContext';
 
 
 // Debug utilities - only initialize if debug mode is enabled
@@ -39,7 +41,7 @@ const gpsIcon = imageUrl('/images/assets/radar.png');
 const radioIcon = imageUrl('/images/assets/walkie_talkie.png');
 const mapIcon = imageUrl('/images/assets/map.png');
 const bgAeroport = imageUrl('/images/assets/airport.png');
-const audioDebutSalle1 = imageUrl('/images/assets/DebutSalle1.mp3');
+const audioDebutSalle1 = imageUrl('/images/assets/DebutMission.mp3');
 const audioFinSalle1 = imageUrl('/images/assets/FinSalle1.mp3');
 
 const droneCode = '10388';
@@ -125,7 +127,7 @@ function LeafletMap({ center, zoom, markerPos, onMapClick }) {
   );
 }
 
-const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }, onNext = () => {} }) => {
+const AeroportGameContent = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }, onNext = () => {} }) => {
   const { roomId } = useParams();
   const playerName = typeof window !== 'undefined' ? (localStorage.getItem('playerName') || 'Joueur') : 'Joueur';
   
@@ -140,6 +142,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
   const [showOfficeGame, setShowOfficeGame] = useState(false); // État pour afficher officeGame
   const [showDesktopGame, setShowDesktopGame] = useState(false); // État pour afficher DesktopGame
   const [chatStarted, setChatStarted] = useState(false); // État pour démarrer le chat vocal
+  const { openWalkieTalkie } = useWalkieTalkie();
 
   // Debug: Log component initialization
   useEffect(() => {
@@ -309,66 +312,6 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
         </div>
       );
     }
-    if (popup === 'radio') {
-      return (
-        <div className="popup-obj" style={popupStyle}>
-          <h3 style={textStyle}>Walkie-Talkie Vocal</h3>
-          <div style={{ marginBottom: '16px' }}>
-            {!chatStarted && (
-              <button 
-                onClick={() => {
-                  debugUI('Chat started', { chatStarted, roomId, playerName });
-                  setChatStarted(true);
-                }}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                📻 Démarrer le chat
-              </button>
-            )}
-          </div>
-          
-          {chatStarted && (
-            <div style={{ 
-              width: '100%', 
-              marginBottom: '16px',
-              animation: 'fadeIn 0.3s ease-in'
-            }}>
-              <PeerJSChat roomId={roomId} playerName={playerName} />
-            </div>
-          )}
-          
-          {!chatStarted && (
-            <div style={{ 
-              padding: '20px', 
-              backgroundColor: '#f8f9fa', 
-              borderRadius: '8px',
-              textAlign: 'center',
-              color: '#6c757d',
-              fontSize: '14px'
-            }}>
-              Cliquez sur "Démarrer le chat" pour activer le walkie-talkie vocal
-            </div>
-          )}
-          
-          <button onClick={() => {
-            debugUI('Radio popup closed');
-            setPopup(null);
-            setChatStarted(false); // Arrêter le chat en fermant la popup
-          }}>Fermer</button>
-        </div>
-      );
-    }
    
     if (popup === 'carte') {
       const marker = coords ? coords.split(',').map(Number) : null;
@@ -407,12 +350,22 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
 
   // Si DesktopGame est activé, afficher DesktopGame
   if (showDesktopGame) {
-    return <DesktopGameEmbed roomId={roomId} playerName={playerName} onBack={() => setShowDesktopGame(false)} />;
+    return <DesktopGameEmbed 
+      roomId={roomId} 
+      playerName={playerName} 
+      onBack={() => setShowDesktopGame(false)}
+    />;
   }
 
   // Si officeGame est activé, afficher officeGame
   if (showOfficeGame) {
-    return <OfficeGameEmbed roomId={roomId} playerName={playerName} onBack={() => setShowOfficeGame(false)} onDesktop={() => setShowDesktopGame(true)} />;
+    return <OfficeGameEmbed 
+      roomId={roomId} 
+      playerName={playerName} 
+      onBack={() => setShowOfficeGame(false)} 
+      onDesktop={() => setShowDesktopGame(true)}
+      onAeroport={() => setShowOfficeGame(false)}
+    />;
   }
 
   return (
@@ -448,6 +401,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
         <p style={{ color: '#888', fontSize: '14px', marginTop: '8px' }}>
           Coopération obligatoire - 2 joueurs requis pour cette mission
         </p>
+        
         
         <div style={{ margin: '32px 0' }}>
           <span style={{ color: '#888' }}></span>
@@ -493,8 +447,8 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
             <img src={gpsIcon} alt="GPS" style={imgBtnStyle} />
           </button>
           <button style={slotBtnStyle} onClick={() => {
-            debugUI('Radio popup opened', { roomId, playerName });
-            setPopup('radio');
+            debugUI('Walkie-talkie popup opened', { roomId, playerName });
+            openWalkieTalkie(roomId, playerName);
           }} title="Radio">
             <img src={radioIcon} alt="Radio" style={imgBtnStyle} />
           </button>
@@ -545,6 +499,7 @@ const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }
           </div>
         </div>
       )}
+
     </div>
   );
 };
@@ -589,6 +544,15 @@ const popupStyle = {
   flexDirection: 'column',
   alignItems: 'center',
   animation: 'popupSlideIn 0.3s ease-out',
+};
+
+const AeroportGame = ({ session = { mode: 'create', code: '', pseudo: 'Joueur' }, onNext = () => {} }) => {
+  return (
+    <WalkieTalkieProvider>
+      <AeroportGameContent session={session} onNext={onNext} />
+      <WalkieTalkieGlobal />
+    </WalkieTalkieProvider>
+  );
 };
 
 export default AeroportGame;

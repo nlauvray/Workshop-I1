@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { imageUrl } from '../config';
+import WalkieTalkieGlobal from './WalkieTalkieGlobal';
+import { WalkieTalkieProvider } from '../contexts/WalkieTalkieContext';
 
 // Composant DesktopGameEmbed qui intègre le vrai DesktopGame
-function DesktopGameEmbed({ roomId, playerName, onBack }) {
+function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
   const [isConnected, setIsConnected] = useState(true); // Simulé comme connecté
   const [folderOpen, setFolderOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -39,11 +41,10 @@ function DesktopGameEmbed({ roomId, playerName, onBack }) {
   // et le dernier message de réussite "FinMission". Les fichiers sont dans images/assets.
   const audioMap = {
     secured: [
-      { src: imageUrl('/images/assets/Organisation1.mp3'), title: 'Organisation 1', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/Organisation2.mp3'), title: 'Organisation 2', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/Organisation3.mp3'), title: 'Organisation 3', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/Organisation4.mp3'), title: 'Organisation 4', speaker: 'Organisation' },
-      { src: imageUrl('/images/assets/Organisation5.mp3'), title: 'Organisation 5', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/OrganisationMessage1.mp3'), title: 'Organisation 1', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/OrganisationMessage2.mp3'), title: 'Organisation 2', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/OrganisationMessage3.mp3'), title: 'Organisation 3', speaker: 'Organisation' },
+      { src: imageUrl('/images/assets/OrganisationMessage4.mp3'), title: 'Organisation 4', speaker: 'Organisation' },
       // Ajout du message final (sera joué manuellement à la réussite si nécessaire)
       { src: imageUrl('/images/assets/FinMission.mp3'), title: 'Fin de mission', speaker: 'Système' },
     ],
@@ -499,7 +500,21 @@ IT Admin`}</pre>
           )}
         </div>
       </div>
+
     </div>
+  );
+}
+
+function DesktopGameEmbed({ roomId, playerName, onBack }) {
+  return (
+    <WalkieTalkieProvider>
+      <DesktopGameEmbedContent 
+        roomId={roomId} 
+        playerName={playerName} 
+        onBack={onBack} 
+      />
+      <WalkieTalkieGlobal />
+    </WalkieTalkieProvider>
   );
 }
 
