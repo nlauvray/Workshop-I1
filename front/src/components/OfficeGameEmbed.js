@@ -234,12 +234,7 @@ const Salle2Createur = ({ session, onNext, onDesktop, onAeroport }) => {
               <div>
                 <h3>Page avec mot de passe chiffré</h3>
                 <p style={{ fontFamily: 'monospace' }}>Première partie : V E C T O R</p>
-                <p style={{ fontFamily: 'monospace' }}>Deuxième partie : Na C Ne</p>
-                <p style={{ color: hintFound ? 'green' : '#999' }}>
-                  {hintFound
-                    ? 'Indice confirmé: utiliser Vigenère et le tableau périodique pour retrouver le PIN du coffre.'
-                    : 'Trouve le bon livre pour savoir comment le décrypter.'}
-                </p>
+                <p style={{ fontFamily: 'monospace' }}>Deuxième partie : Tableau périodique</p>
               </div>
             )}
             {popup === 'carte' && (
@@ -364,6 +359,12 @@ function OpenBook({ book, onFoundHint }) {
             <strong> ASTMMKRS</strong></p>
 
             <p>Utilise un solveur Vigenère si besoin. Le résultat te donnera deux chiffres.</p>
+              <p>Méthode	Vigenère</p>
+                <p>Texte clair	ASTMMKRS</p>
+                <p>Clé	Secret</p>
+                <p>Résultat Obtenu</p>
+                <p>Somme totale des opérations</p>
+                <p>Somme mod 166</p>
       </>
     ),
     vert: (

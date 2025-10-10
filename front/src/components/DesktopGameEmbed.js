@@ -395,7 +395,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
     if (itemId === 'email3_fake') {
       return (
         <div>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 3 - FAUX (pour induire en erreur)</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 3 - Formation cybersécurité</div>
           <div style={boxStyle}>
             <pre style={preStyle}>{`DE: rh@neuralsky-systems.com
               À: all@neuralsky-systems.com
@@ -419,7 +419,7 @@ function DesktopGameEmbedContent({ roomId, playerName, onBack }) {
     if (itemId === 'email4_fake') {
       return (
         <div>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 4 - FAUX (pour induire en erreur)</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email 4- Maintenance HALT des serveurs</div>
           <div style={boxStyle}>
             <pre style={preStyle}>{`DE: admin@neuralsky-systems.com
               À: tech-team@neuralsky-systems.com
